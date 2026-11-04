@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatTokenAmount, getPublicPotState, type PublicPotDetails } from "@/lib/public-pot";
+import { PotContribution } from "@/components/pot-contribution";
 import { SharePotLink } from "@/components/share-pot-link";
 
 type Props = { address: string };
@@ -98,6 +99,7 @@ function ActivityMark({ eventName }: { eventName: string }) {
 
 export function PublicPotPage({ address }: Props) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -135,7 +137,7 @@ export function PublicPotPage({ address }: Props) {
 
     void loadPot();
     return () => controller.abort();
-  }, [address]);
+  }, [address, refreshKey]);
 
   if (state.status === "loading") {
     return (
@@ -229,10 +231,7 @@ export function PublicPotPage({ address }: Props) {
             <span>Minimum contribution</span>
             <strong>{formattedAmount(pot.minimumContribution, pot.tokenDecimals, pot.tokenSymbol)}</strong>
           </div>
-          <button className="pot-contribute-button" disabled type="button">
-            Contributions aren’t enabled yet
-          </button>
-          <p className="pot-contribute-note">This pot is a read-only preview until its payment flow is deployed.</p>
+          <PotContribution pot={pot} onConfirmed={() => setRefreshKey((current) => current + 1)} />
         </aside>
       </section>
 

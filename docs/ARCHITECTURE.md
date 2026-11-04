@@ -19,7 +19,8 @@ needs it.
 
 The current wallet route supports Coinbase Wallet and injected providers. Wallet connection
 requests account access; it does not sign a transaction. The only implemented write flow is gated
-pot creation on Base Sepolia; contribution, payout, and refund transactions are not implemented.
+pot creation and gated USDC contributions on Base Sepolia; payout and refund transactions are not
+implemented.
 The Base Sepolia chain ID and explorer configuration come from viem's chain definition. The
 configured public RPC is appropriate only for testnet development, not production.
 The Wagmi client appends an ERC-8021 Builder Code suffix when the public
@@ -48,8 +49,12 @@ remaining end-to-end setup.
 
 The public pot route lives at `/pot/[address]`. It reads financial state directly from the
 Base Sepolia factory and pot contract, formats amounts using the onchain token decimals, and uses
-Supabase only for display metadata and confirmed event history. It is intentionally read-only
-until a factory deployment and Builder Code are configured.
+Supabase only for display metadata and confirmed event history. The contribution panel verifies the
+configured factory, pot registration, Circle USDC, wallet balance, and live contribution rules
+before enabling writes. It requests an exact-amount USDC approval only when the current allowance
+is insufficient, then waits for transaction receipts; pending contributions are never counted.
+Both creation and contribution remain disabled until a factory deployment and Builder Code are
+configured.
 
 The organizer dashboard at `/dashboard` reads only public pot identity/configuration rows from
 Supabase, scoped to the connected wallet address and Base Sepolia. It does not show balances or

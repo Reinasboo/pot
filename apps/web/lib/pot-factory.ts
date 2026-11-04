@@ -8,8 +8,25 @@ export const circleBaseSepoliaUsdc = getAddress(
 
 export const potFactoryAbi = parseAbi([
   "function token() view returns (address)",
+  "function isPot(address pot) view returns (bool)",
   "function createPot(string name, string metadataURI, bool targetBased, uint256 targetAmount, uint64 deadline, uint256 minimumContribution) returns (address potAddress)",
   "event PotCreated(address indexed pot, address indexed organizer, bool targetBased, uint256 targetAmount, uint64 deadline, uint256 minimumContribution, string name, string metadataURI)",
+]);
+
+export const potContractAbi = parseAbi([
+  "function token() view returns (address)",
+  "function targetBased() view returns (bool)",
+  "function targetAmount() view returns (uint256)",
+  "function minimumContribution() view returns (uint256)",
+  "function totalContributed() view returns (uint256)",
+  "function isContributionOpen() view returns (bool)",
+  "function contribute(uint256 amount)",
+]);
+
+export const usdcAbi = parseAbi([
+  "function balanceOf(address account) view returns (uint256)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
 ]);
 
 export const circleUsdcDecimals = SETTLEMENT_TOKEN_DECIMALS;

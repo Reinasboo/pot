@@ -128,6 +128,51 @@ test("keeps onchain creation disabled without a verified factory", async ({ page
   );
 });
 
+test("shows the shared pot contribution form without enabling an unconnected wallet", async ({
+  page,
+}) => {
+  const potAddress = "0x1111111111111111111111111111111111111111";
+  await page.route(`**/api/pots/${potAddress}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        address: potAddress,
+        chainId: 84532,
+        organizer: "0x2222222222222222222222222222222222222222",
+        token: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        name: "Shared trip",
+        metadataURI: "",
+        description: "A test pot.",
+        coverImageUrl: null,
+        targetBased: true,
+        targetAmount: "100000000",
+        deadline: "2000000000",
+        minimumContribution: "1000000",
+        totalContributed: "0",
+        totalRefunded: "0",
+        tokenDecimals: 6,
+        tokenSymbol: "USDC",
+        paidOut: false,
+        contributionOpen: true,
+        payoutEligible: false,
+        refundEligible: false,
+        explorerUrl: "https://sepolia.basescan.org",
+        events: [],
+      }),
+    }),
+  );
+  await page.goto(`/pot/${potAddress}`);
+
+  await expect(page.getByRole("heading", { name: "Shared trip" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Contribute USDC" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Connect wallet" })).toHaveAttribute(
+    "href",
+    "/connect",
+  );
+  await expect(page.getByRole("button", { name: "Contribute", exact: true })).toBeDisabled();
+});
+
 test("restores and clears a saved local draft only after confirmation", async ({ page }) => {
   await page.goto("/create");
   await page.getByLabel("Pot name").fill("Saved trip");

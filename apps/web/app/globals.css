@@ -1958,16 +1958,189 @@ a {
 .pot-contribute-button {
   width: 100%;
   min-height: 46px;
-  margin-top: 17px;
+  margin-top: 12px;
   padding-inline: 12px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 4px;
-  background: #ecefe8;
-  color: #777f74;
+  background: var(--ink);
+  color: white;
   font: inherit;
   font-size: 10px;
   font-weight: 700;
+  cursor: pointer;
+}
+
+.pot-contribute-button:hover:not(:disabled) {
+  background: #27342b;
+}
+
+.pot-contribute-button:focus-visible,
+.pot-contribution-network-button:focus-visible,
+.pot-contribution-suggestions button:focus-visible,
+.pot-contribution-connect:focus-visible {
+  outline: 3px solid #91bd58;
+  outline-offset: 3px;
+}
+
+.pot-contribute-button:disabled {
+  border-color: #e2e5df;
+  background: #ecefe8;
+  color: #777f74;
   cursor: not-allowed;
+}
+
+.pot-contribution {
+  margin-top: 16px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pot-contribution-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pot-contribution-heading h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pot-contribution-heading > span {
+  color: var(--text-tertiary);
+  font-size: 9px;
+  text-align: right;
+}
+
+.pot-contribution-connect,
+.pot-contribution-network-button {
+  display: inline-flex;
+  min-height: 35px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  padding-inline: 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--green-ink);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pot-contribution-label {
+  display: block;
+  margin-top: 13px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.pot-contribution-input-row {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding-inline: 11px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+}
+
+.pot-contribution-input-row:focus-within {
+  outline: 2px solid #91bd58;
+  outline-offset: 1px;
+}
+
+.pot-contribution-input-row input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.pot-contribution-input-row > span {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pot-contribution-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.pot-contribution-suggestions button {
+  min-height: 29px;
+  padding-inline: 9px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--green-ink);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.pot-contribution-suggestions button:hover {
+  background: var(--green-muted);
+}
+
+.pot-contribution .pot-contribute-button {
+  margin-top: 10px;
+}
+
+.pot-contribution-note,
+.pot-contribution-approval-note,
+.pot-contribution-status,
+.pot-contribution-error {
+  margin: 8px 0 0;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.pot-contribution-note,
+.pot-contribution-approval-note {
+  color: var(--text-tertiary);
+}
+
+.pot-contribution-approval-note {
+  margin-top: 6px;
+}
+
+.pot-contribution-status {
+  color: var(--green-ink);
+  font-weight: 650;
+}
+
+.pot-contribution-error {
+  color: #a53d34;
+}
+
+.pot-contribution-error[role="alert"] {
+  padding-left: 17px;
+}
+
+.pot-contribution-transaction-link {
+  display: inline-block;
+  margin-top: 7px;
+  color: var(--green-ink);
+  font-size: 9px;
+  font-weight: 700;
+  text-underline-offset: 3px;
 }
 
 .pot-contribute-note {

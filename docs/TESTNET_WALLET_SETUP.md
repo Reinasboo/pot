@@ -73,8 +73,10 @@ The following are still required before deploying or sending a transaction:
   address. Set `POT_INDEXER_START_BLOCK` to its deployment block.
 - Configure and validate Supabase as documented in `INDEXING.md` before relying on public pot
   pages or indexed activity.
-- Pot creation has a client flow, but cannot submit before the checks above. USDC approval and
-  contribution, payout, and refund flows are not implemented yet.
+- Pot creation and USDC contribution client flows are wired but cannot submit before the checks
+  above. Contribution checks pot registration, Circle USDC, available balance, and contract rules;
+  it only requests an exact-amount approval when needed. Payout and refund UI flows are not
+  implemented yet.
 - Test from the organizer and contributor browser profiles and verify every transaction on
   Base Sepolia explorer.
 
