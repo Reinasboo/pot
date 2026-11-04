@@ -1791,6 +1791,99 @@ a {
   overflow-wrap: anywhere;
 }
 
+.pot-metadata-editor {
+  display: grid;
+  gap: 12px;
+  margin-top: 26px;
+  padding: 18px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+}
+
+.pot-metadata-editor h2 {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: -0.025em;
+}
+
+.pot-metadata-editor > p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.pot-metadata-editor form {
+  display: grid;
+  gap: 10px;
+}
+
+.pot-metadata-editor form > label:not(.pot-metadata-editor-consent) {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pot-metadata-editor textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 10px;
+  border: 1px solid #d5dbd0;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.pot-metadata-editor textarea:focus-visible,
+.pot-metadata-editor-consent input:focus-visible {
+  outline: 3px solid rgb(145 189 88 / 35%);
+  outline-offset: 2px;
+}
+
+.pot-metadata-editor-count {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.pot-metadata-editor-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.pot-metadata-editor-consent input {
+  flex: 0 0 auto;
+  margin: 1px 0 0;
+  accent-color: var(--green-ink);
+}
+
+.pot-metadata-editor-network {
+  display: grid;
+  gap: 8px;
+}
+
+.pot-metadata-editor-error,
+.pot-metadata-editor-status {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.pot-metadata-editor-error {
+  color: var(--warning-ink);
+}
+
+.pot-metadata-editor-status {
+  color: var(--green-ink);
+}
+
 .pot-organizer {
   display: flex;
   align-items: center;
@@ -3275,6 +3368,26 @@ a {
   color: var(--text-secondary);
   font-size: 10px;
   line-height: 1.65;
+}
+
+.pot-create-published-metadata {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.pot-create-published-metadata > p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.pot-create-published-metadata > a {
+  color: var(--green-ink);
+  font-size: 11px;
+  font-weight: 700;
+  text-underline-offset: 3px;
 }
 
 .pot-create-storage-message {

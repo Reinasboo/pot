@@ -162,6 +162,7 @@ test("shows the shared pot contribution and settlement forms without enabling an
         metadataURI: "",
         description: "A test pot.",
         coverImageUrl: null,
+        isPublic: true,
         targetBased: true,
         targetAmount: "100000000",
         deadline: "2000000000",
@@ -202,6 +203,107 @@ test("shows the shared pot contribution and settlement forms without enabling an
     }));
     expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
   }
+});
+
+test("publishes public pot description only after the organizer signs and consents", async ({ page }) => {
+  const potAddress = "0x1111111111111111111111111111111111111111";
+  const walletAddress = "0x2222222222222222222222222222222222222222";
+  let publishedDescription = "";
+  let submittedUpdate: Record<string, unknown> | undefined;
+  let challengedDescription = "";
+
+  await page.addInitScript((address) => {
+    const listeners = new Map<string, Set<(value: string) => void>>();
+    const provider = {
+      isMetaMask: true,
+      request: async ({ method }: { method: string }) => {
+        if (method === "eth_chainId") return "0x14a34";
+        if (method === "eth_accounts" || method === "eth_requestAccounts") return [address];
+        if (method === "personal_sign") return `0x${"11".repeat(65)}`;
+        throw new Error(`Unsupported mocked wallet request: ${method}`);
+      },
+      on: (event: string, listener: (value: string) => void) => {
+        const eventListeners = listeners.get(event) ?? new Set();
+        eventListeners.add(listener);
+        listeners.set(event, eventListeners);
+      },
+      removeListener: (event: string, listener: (value: string) => void) => {
+        listeners.get(event)?.delete(listener);
+      },
+    };
+    Object.defineProperty(window, "ethereum", { configurable: true, value: provider });
+  }, walletAddress);
+  await page.goto("/connect");
+  await page.getByRole("button", { name: /Injected/ }).click();
+  await expect(page.getByRole("heading", { name: "You’re connected." })).toBeVisible();
+
+  await page.route(`**/api/pots/${potAddress}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        address: potAddress,
+        chainId: 84532,
+        organizer: walletAddress,
+        token: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        name: "Shared trip",
+        metadataURI: "",
+        description: publishedDescription,
+        coverImageUrl: null,
+        isPublic: true,
+        targetBased: false,
+        targetAmount: "0",
+        deadline: "0",
+        minimumContribution: "1000000",
+        totalContributed: "0",
+        totalRefunded: "0",
+        tokenDecimals: 6,
+        tokenSymbol: "USDC",
+        paidOut: false,
+        contributionOpen: true,
+        payoutEligible: false,
+        refundEligible: false,
+        explorerUrl: "https://sepolia.basescan.org",
+        events: [],
+      }),
+    }),
+  );
+  await page.route("**/api/pots/metadata/challenge", async (route) => {
+    challengedDescription = String(route.request().postDataJSON().description);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        nonce: "0123456789abcdef0123456789abcdef",
+        message: "Authorize publishing this public description for this public pot.",
+        expiresAt: new Date(Date.now() + 300_000).toISOString(),
+      }),
+    });
+  });
+  await page.route("**/api/pots/metadata", async (route) => {
+    submittedUpdate = route.request().postDataJSON() as Record<string, unknown>;
+    publishedDescription = String(submittedUpdate.description);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true }),
+    });
+  });
+
+  await page.goto(`/pot/${potAddress}`);
+  const editor = page.getByRole("region", { name: "Public description" });
+  await expect(editor).toBeVisible();
+  await expect(editor.getByRole("button", { name: "Sign and publish description" })).toBeDisabled();
+  await editor.getByRole("textbox", { name: "Description" }).fill("A weekend away together.");
+  await editor.getByLabel("I understand this description will be public.").check();
+  await editor.getByRole("button", { name: "Sign and publish description" }).click();
+
+  await expect(editor.getByRole("status")).toContainText("Public description saved.");
+  await expect.poll(() => submittedUpdate?.description).toBe("A weekend away together.");
+  await expect.poll(() => challengedDescription).toBe("A weekend away together.");
+  expect(submittedUpdate?.walletAddress).toBe(walletAddress);
+  expect(typeof submittedUpdate?.signature).toBe("string");
+  await expect(page.getByText("A weekend away together.").first()).toBeVisible();
 });
 
 test("dashboard separates created pots from publicly indexed contributions", async ({ page }) => {

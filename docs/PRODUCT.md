@@ -59,3 +59,7 @@ are configured. Organizers may explicitly save and restore an unsubmitted draft 
 browser; no draft data is uploaded or sent onchain. Drafts can also include an optional purpose
 description for contributors, but that purpose is not published. The form indicates when a local
 draft exists and asks for confirmation before replacing or removing saved values.
+After a pot is created and appears in the public index, its connected organizer may separately
+publish a description on the public pot page by consenting and signing a one-time message. This
+does not submit a transaction; it updates display metadata in Supabase. The metadata migration and
+live Supabase/factory setup have not been applied or verified.

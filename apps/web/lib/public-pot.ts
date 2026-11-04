@@ -107,6 +107,7 @@ export type PublicPotDetails = {
   metadataURI: string;
   description: string;
   coverImageUrl: string | null;
+  isPublic: boolean;
   targetBased: boolean;
   targetAmount: string;
   deadline: string;
@@ -133,6 +134,7 @@ type Environment = {
 type PotMetadataRow = {
   description: string;
   cover_image_url: string | null;
+  is_public: boolean;
 };
 
 type PotEventRow = {
@@ -161,7 +163,8 @@ function isMetadataRows(value: unknown): value is PotMetadataRow[] {
       (row) =>
         isRecord(row) &&
         typeof row.description === "string" &&
-        (typeof row.cover_image_url === "string" || row.cover_image_url === null),
+        (typeof row.cover_image_url === "string" || row.cover_image_url === null) &&
+        typeof row.is_public === "boolean",
     )
   );
 }
@@ -549,7 +552,7 @@ export async function getPublicPot(addressInput: string): Promise<PublicPotDetai
   }
 
   const metadataParameters = new URLSearchParams({
-    select: "description,cover_image_url",
+    select: "description,cover_image_url,is_public",
     chain_id: `eq.${baseSepolia.id}`,
     address: `eq.${address.toLowerCase()}`,
     limit: "1",
@@ -586,6 +589,7 @@ export async function getPublicPot(addressInput: string): Promise<PublicPotDetai
     metadataURI,
     description: metadata?.description ?? "",
     coverImageUrl: metadata?.cover_image_url ?? null,
+    isPublic: metadata?.is_public ?? false,
     targetBased,
     targetAmount: targetAmount.toString(),
     deadline: deadline.toString(),

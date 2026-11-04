@@ -28,6 +28,12 @@ Before any real funds are involved:
 
 - Never store private keys in the application or database.
 - Never expose a Supabase service-role key or RPC provider secret to client code.
+- Public pot descriptions are updated only through server routes that verify a short-lived,
+  single-use wallet signature bound to the exact proposed text and confirm the pot organizer
+  against the configured Base Sepolia factory and pot contract. The database update is limited to
+  the matching public pot row.
+- Treat the metadata-signing message as authorization to publish public text, not as a transaction
+  or a Supabase login. The UI requires explicit public-consent confirmation.
 - Treat user input as untrusted and validate it server-side where applicable.
 - Enforce Supabase Row Level Security for private and organizer-only data.
 - Verify the active chain before signing or sending transactions.

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatTokenAmount, getPublicPotState, type PublicPotDetails } from "@/lib/public-pot";
 import { PotContribution } from "@/components/pot-contribution";
+import { PotMetadataEditor } from "@/components/pot-metadata-editor";
 import { PotSettlement } from "@/components/pot-settlement";
 import { SharePotLink } from "@/components/share-pot-link";
 
@@ -28,6 +29,7 @@ function isPublicPotDetails(value: unknown): value is PublicPotDetails {
     typeof value.metadataURI === "string" &&
     typeof value.description === "string" &&
     (typeof value.coverImageUrl === "string" || value.coverImageUrl === null) &&
+    typeof value.isPublic === "boolean" &&
     typeof value.targetBased === "boolean" &&
     typeof value.targetAmount === "string" &&
     typeof value.deadline === "string" &&
@@ -189,6 +191,15 @@ export function PublicPotPage({ address }: Props) {
             <span>Organized by <strong title={pot.organizer}>{shortAddress(pot.organizer)}</strong></span>
           </div>
           <SharePotLink name={pot.name} />
+          {pot.isPublic && (
+            <PotMetadataEditor
+              address={pot.address}
+              organizer={pot.organizer}
+              isPublic={pot.isPublic}
+              initialDescription={pot.description}
+              onPublished={() => setRefreshKey((current) => current + 1)}
+            />
+          )}
         </div>
 
         <aside className="pot-funding-panel" aria-label="Pot funding summary">

@@ -76,6 +76,13 @@ uploaded or included in the contract call. The form can optionally save a versio
 browser `localStorage`; draft content stays on that device and has no server sync. It confirms
 before overwriting, restoring over non-empty form values, or deleting a saved draft.
 
+Public-pot descriptions are published separately from creation. Server-only metadata routes issue
+five-minute challenges bound to the exact proposed text, verify the connected wallet's signature
+and onchain organizer status on Base Sepolia, consume each challenge once, and update only the
+matching indexed public-pot description in Supabase. Challenge issuance is rate-limited per
+wallet. The signing operation is not an onchain transaction or a Supabase login; the metadata
+migration must be applied before publishing is available.
+
 ## Financial flow
 
 The intended flow is:

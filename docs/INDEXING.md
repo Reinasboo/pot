@@ -30,8 +30,8 @@ Set these server-side environment variables in `apps/web`:
 - `SUPABASE_SERVICE_ROLE_KEY`: server-only service role key. Never use a `NEXT_PUBLIC_` prefix.
 - `INDEXER_CRON_SECRET`: random secret of at least 32 characters.
 
-Apply migrations before invoking the endpoint. The Supabase service role bypasses RLS; it is only
-used by the protected server route. Never send it to the browser.
+Apply migrations before invoking the indexer or publishing pot descriptions. The metadata editor
+also requires the service role key; it is used only by server routes and never sent to the browser.
 
 ## Run a batch
 
@@ -54,12 +54,15 @@ over speed and can take multiple scheduled batches to catch up again.
 ## Access control and privacy
 
 - Anonymous users may read public pot metadata and its indexed events.
-- Authenticated organizers may update only description, cover image URL, and visibility, and only
-  when the JWT `app_metadata.wallet_address` matches the onchain organizer.
+- Organizers may publish a description only for a public, indexed pot. The server verifies the
+  wallet's one-time signature over the exact proposed description, Base Sepolia chain, factory
+  registration, and onchain organizer before consuming the nonce and updating only that pot's
+  description.
+- Challenge nonces expire after five minutes, are single-use, and are limited to five per wallet
+  in ten minutes. Nonces are retained after use until the rate-limit window expires.
 - Only the service role can create pot rows, write chain events, or move indexer state.
-- The wallet-authentication service that verifies a wallet signature and sets trusted
-  `app_metadata.wallet_address` is not implemented yet; organizer metadata updates remain
-  unavailable until it exists.
+- The metadata API is not a general wallet-authentication service and does not create Supabase
+  sessions. The editor requires explicit consent because the description is public.
 - Onchain contributor addresses and amounts are public. Hiding an address in the UI is not
   onchain privacy.
 
@@ -90,3 +93,8 @@ migration adds an expression index for that lookup. Results use the Supabase ano
 RLS policies; private pots and contributions that have not yet passed the indexer's confirmation
 depth are excluded. The dashboard does not calculate an all-time contribution total from this
 bounded activity query.
+
+`POST /api/pots/metadata/challenge` and `POST /api/pots/metadata` issue and consume the short-lived
+wallet-signature authorization used by the public-pot description editor. Apply
+`20261104180000_authorize_wallet_metadata.sql` before enabling this feature. A newly created pot
+must first appear in the indexer before its description can be published.

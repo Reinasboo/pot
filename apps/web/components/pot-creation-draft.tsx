@@ -11,6 +11,7 @@ import {
   useWriteContract,
 } from "wagmi";
 import { getBuilderDataSuffix, requireBuilderDataSuffix } from "@/lib/builder-attribution";
+import { PotMetadataEditor } from "@/components/pot-metadata-editor";
 import { supportedChain } from "@/lib/wagmi";
 import {
   getPotFactoryCreateArguments,
@@ -293,8 +294,8 @@ export function PotCreationDraft() {
               value={draft.purpose}
             />
             <span className="pot-form-hint">
-              {Array.from(draft.purpose).length.toLocaleString()} / 2,000 characters. Kept in this
-              browser with your local draft.
+              {Array.from(draft.purpose).length.toLocaleString()} / 2,000 characters. Saved with
+              your local draft; publish separately after creating the pot.
             </span>
           </div>
 
@@ -440,7 +441,7 @@ export function PotCreationDraft() {
                         ? "Connect a wallet to create this pot on Base Sepolia."
                         : wrongNetwork
                           ? "Switch your connected wallet to Base Sepolia before creating a pot."
-                          : "A transaction is sent only after you confirm it in your wallet. Pot purpose stays in this browser and is not included onchain."}
+                          : "A transaction is sent only after you confirm it in your wallet. Purpose text is not included onchain and is published only after a separate wallet signature."}
         </p>
         {showPreview && (
           <div className="pot-create-submit">
@@ -489,6 +490,21 @@ export function PotCreationDraft() {
                 : <>Transaction submitted. <a href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`} rel="noreferrer" target="_blank">View pending transaction</a>.</>}
           </p>
         )}
+        {receipt?.status === "success" && createdPotAddress && walletAddress && (
+          <div className="pot-create-published-metadata">
+            <p>
+              Your pot name and rules are onchain. Its description stays private until you choose
+              to publish it below.
+            </p>
+            <PotMetadataEditor
+              address={createdPotAddress}
+              organizer={walletAddress}
+              isPublic
+              initialDescription={draft.purpose.trim()}
+            />
+            <Link href={`/pot/${createdPotAddress}`}>Open the public pot page</Link>
+          </div>
+        )}
       </section>
 
       <aside className="pot-create-preview" aria-live="polite">
@@ -520,8 +536,8 @@ export function PotCreationDraft() {
               </div>
             </dl>
             <p className="pot-create-preview-note">
-              The pot name and settlement rules are sent to the contract. Purpose text stays in
-              this browser and is not published.
+              The pot name and settlement rules are sent to the contract. Purpose text is kept
+              locally until you separately sign to publish it on the public pot page.
             </p>
           </>
         ) : (

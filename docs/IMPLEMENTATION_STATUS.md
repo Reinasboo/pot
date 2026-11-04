@@ -36,6 +36,8 @@ Completed:
   state and token decimals from Base Sepolia, and displays indexed activity with explorer links.
 - Added a wallet-aware, read-only organizer dashboard for indexed public pots, scoped to the
   connected wallet and supported Base Sepolia network.
+- Added organizer-authorized public description publishing with explicit consent, short-lived
+  single-use wallet-signature challenges, onchain organizer verification, and Supabase persistence.
 - Extended the wallet dashboard to list public pots created by the wallet and pots with indexed,
   confirmed contributions from it. Participation results are bounded to the 250 latest indexed
   contribution events.
@@ -77,7 +79,8 @@ Completed:
 Still outstanding in this milestone:
 
 - Add and validate a dedicated design-token system if the interface grows beyond the current page.
-- Verify wallet connection/network switching using an installed wallet.
+- Verify wallet connection/network switching and public-description publishing using an installed
+  wallet.
 - Run the indexer against Supabase and a deployed Base Sepolia factory; validate reorg recovery.
 - Create and fund the user's two dedicated Base Sepolia test wallets, then run the wallet preflight.
 - Obtain and configure a Builder Code before pot creation/deployment flows can be tested.
@@ -92,7 +95,7 @@ Still outstanding in this milestone:
 | 2. Wallet onboarding | In progress | Verify connection and network switching with real wallet providers; test rejection, disconnection, and unsupported-network recovery. |
 | 3. Smart contracts | In progress | Independent security review and verified token/deployment configuration remain outstanding. |
 | 4. Database and indexing | Implemented locally | Apply migrations and run against a configured Supabase project and deployed factory; live recovery/reconciliation remains to validate. |
-| 5. Core application | In progress | Create, contribution, payout, and refund transaction flows are wired but gated on a deployed verified factory and Builder Code. Public dashboard totals cover only listed indexed pots; metadata publishing and complete private-pot access are not implemented. Circle Base Sepolia USDC is verified; dedicated test wallets and Builder Code are not configured. |
+| 5. Core application | In progress | Create, contribution, payout, and refund transaction flows are wired but gated on a deployed verified factory and Builder Code. Public dashboard totals cover only listed indexed pots; public description publishing requires the new migration and live Supabase/factory setup. Complete private-pot access is not implemented. Circle Base Sepolia USDC is verified; dedicated test wallets and Builder Code are not configured. |
 | 6. Polish and demo | In progress | Verify CI; testnet flow, remaining responsive/error-state review, and repeatable two-wallet demo remain. |
 | 7. Deployment and submission | Not started | Testnet deployment, contract verification, clean-session checks, final documentation. |
 
@@ -105,3 +108,5 @@ Still outstanding in this milestone:
 - Do not claim live contributions, deployed contracts, indexing, refunds, or payouts until each is
   implemented and verified on testnet.
 - Contract tests use a local mock token. Passing tests do not imply an audit or guarantee safety.
+- The public metadata signature flow is locally implemented and tested, but remains unverified
+  against a deployed factory and configured Supabase project.

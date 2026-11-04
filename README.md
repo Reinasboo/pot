@@ -24,8 +24,11 @@ activity.
   and create onchain when the factory, wallet, network, token, and Builder Code checks pass.
 - `/pot/{address}` — public pot state and indexed activity, with contribution and settlement
   actions that remain gated until the required deployment and attribution settings are configured.
+  The connected organizer can separately sign and publish a public description after the pot is
+  indexed.
 - `contracts` — Foundry factory and pot contracts with a local test suite; not deployed.
-- `supabase` — pot metadata/event schema and RLS migration; no project configured yet.
+- `supabase` — pot metadata/event schema and RLS migrations, including organizer-authorized public
+  description updates; no project configured yet.
 - `docs` — product, architecture, roadmap, security, and deployment notes.
 
 ## Run the web app
