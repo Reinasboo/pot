@@ -15,6 +15,8 @@ const usdcAbi = parseAbi([
   "function symbol() view returns (string)",
 ]);
 
+let configuredRpcUrl;
+
 function requiredWallet(name, label) {
   if (!name || !isAddress(name)) {
     throw new Error(`${label} must be a public EVM address in apps/web/.env.local.`);
@@ -40,8 +42,24 @@ async function main() {
     throw new Error("Organizer and contributor test wallets must be different addresses.");
   }
 
-  const rpcUrl = process.env.BASE_SEPOLIA_RPC_URL?.trim() || baseSepolia.rpcUrls.default.http[0];
-  if (!rpcUrl || new URL(rpcUrl).protocol !== "https:") {
+  const rpcUrl =
+    process.env.BASE_SEPOLIA_RPC_URL?.trim() || baseSepolia.rpcUrls.default.http[0];
+  if (!rpcUrl) {
+    throw new Error("No Base Sepolia RPC URL is available.");
+  }
+  configuredRpcUrl = rpcUrl;
+
+  let parsedRpcUrl;
+  try {
+    parsedRpcUrl = new URL(rpcUrl);
+  } catch {
+    throw new Error("BASE_SEPOLIA_RPC_URL must be a valid HTTPS URL.");
+  }
+  if (
+    parsedRpcUrl.protocol !== "https:" ||
+    parsedRpcUrl.username ||
+    parsedRpcUrl.password
+  ) {
     throw new Error("BASE_SEPOLIA_RPC_URL must be an HTTPS URL.");
   }
 
@@ -129,6 +147,10 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("Base Sepolia wallet preflight failed:", error);
+  const message = error instanceof Error ? error.message : String(error);
+  const safeMessage = configuredRpcUrl
+    ? message.replaceAll(configuredRpcUrl, "[configured RPC endpoint]")
+    : message;
+  console.error("Base Sepolia wallet preflight failed:", safeMessage);
   process.exitCode = 1;
 });

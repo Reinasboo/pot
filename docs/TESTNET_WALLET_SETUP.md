@@ -56,6 +56,9 @@ each wallet's ETH and USDC balances. It exits with an error if the addresses are
 network or token doesn't match, or either wallet lacks a positive balance of either asset. This
 read-only check cannot prove that an address is controlled by a signing wallet; connect each
 account manually at `/connect` and confirm its public address in the wallet before testing.
+RPC URLs must use HTTPS and cannot include URL username/password credentials. RPC URLs containing
+provider keys in the query or path are accepted for this local read-only check; failure messages
+redact the configured URL.
 
 ## Before live POT transactions
 
