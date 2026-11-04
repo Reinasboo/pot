@@ -2,10 +2,27 @@
 
 import { useState, type FormEvent } from "react";
 import { useSyncExternalStore } from "react";
+import Link from "next/link";
 import {
+  useAccount,
+  useReadContract,
+  useSwitchChain,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from "wagmi";
+import { getBuilderDataSuffix, requireBuilderDataSuffix } from "@/lib/builder-attribution";
+import { supportedChain } from "@/lib/wagmi";
+import {
+  getPotFactoryCreateArguments,
   validatePotDraft,
   type PotDraft,
 } from "@/lib/pot-creation";
+import {
+  circleBaseSepoliaUsdc,
+  getConfiguredPotFactoryAddress,
+  getCreatedPotAddress,
+  potFactoryAbi,
+} from "@/lib/pot-factory";
 
 type Draft = PotDraft;
 
@@ -78,6 +95,56 @@ export function PotCreationDraft() {
   const [showPreview, setShowPreview] = useState(false);
   const [storageMessage, setStorageMessage] = useState("");
   const [pendingAction, setPendingAction] = useState<"save" | "restore" | "clear" | null>(null);
+  const [transactionHash, setTransactionHash] = useState<`0x${string}`>();
+  const [transactionError, setTransactionError] = useState("");
+  const { address: walletAddress, chainId, isConnected } = useAccount();
+  const {
+    switchChain,
+    isPending: isSwitchingChain,
+    error: switchChainError,
+  } = useSwitchChain();
+  const factoryAddress = getConfiguredPotFactoryAddress();
+  const rawFactoryAddress = process.env.NEXT_PUBLIC_POT_FACTORY_ADDRESS?.trim();
+  const builderDataSuffix = getBuilderDataSuffix();
+  const {
+    data: factoryToken,
+    isError: isFactoryReadError,
+    isLoading: isFactoryLoading,
+  } = useReadContract({
+    address: factoryAddress,
+    abi: potFactoryAbi,
+    functionName: "token",
+    chainId: supportedChain.id,
+    query: { enabled: Boolean(factoryAddress) },
+  });
+  const {
+    writeContractAsync,
+    isPending: isWritePending,
+    error: writeError,
+  } = useWriteContract();
+  const {
+    data: receipt,
+    isError: isReceiptError,
+    isLoading: isReceiptLoading,
+  } = useWaitForTransactionReceipt({
+    chainId: supportedChain.id,
+    hash: transactionHash,
+    query: { enabled: Boolean(transactionHash) },
+  });
+  const createdPotAddress = receipt?.status === "success"
+    ? getCreatedPotAddress(receipt.logs)
+    : undefined;
+  const wrongNetwork = isConnected && chainId !== supportedChain.id;
+  const factoryUsesUsdc =
+    factoryToken?.toLowerCase() === circleBaseSepoliaUsdc.toLowerCase();
+  const creationReady = Boolean(
+    factoryAddress &&
+      factoryUsesUsdc &&
+      builderDataSuffix &&
+      isConnected &&
+      walletAddress &&
+      !wrongNetwork,
+  );
   const hasSavedDraft = useSyncExternalStore(
     subscribeToDraftStorage,
     getDraftStorageSnapshot,
@@ -164,6 +231,31 @@ export function PotCreationDraft() {
     setShowPreview(nextErrors.length === 0);
   }
 
+  async function createPot() {
+    const nextErrors = validatePotDraft(draft);
+    setErrors(nextErrors);
+    if (nextErrors.length > 0) return;
+    if (!factoryAddress || !factoryUsesUsdc || !isConnected || wrongNetwork) return;
+
+    try {
+      requireBuilderDataSuffix();
+      setTransactionError("");
+      setTransactionHash(undefined);
+      const hash = await writeContractAsync({
+        address: factoryAddress,
+        abi: potFactoryAbi,
+        functionName: "createPot",
+        args: getPotFactoryCreateArguments(draft),
+        chainId: supportedChain.id,
+      });
+      setTransactionHash(hash);
+    } catch (error) {
+      setTransactionError(
+        error instanceof Error ? error.message : "The wallet could not submit this transaction.",
+      );
+    }
+  }
+
   return (
     <div className="pot-create-layout">
       <section className="pot-create-form-section" aria-labelledby="create-form-title">
@@ -171,8 +263,8 @@ export function PotCreationDraft() {
           <p className="pot-eyebrow">POT SETUP</p>
           <h1 id="create-form-title">Set the rules before you share.</h1>
           <p>
-            Choose how this pot settles and check the rules together. This prototype can preview
-            your setup, but it cannot create a pot yet.
+            Choose how this pot settles and review the terms. Onchain creation is enabled only
+            after the deployed factory and Builder Code have been verified.
           </p>
         </div>
 
@@ -272,7 +364,7 @@ export function PotCreationDraft() {
               value={draft.minimum}
             />
             <span className="pot-form-hint">
-              In the configured settlement token. Token and precision are not set up yet.
+              Circle USDC on Base Sepolia · 6 decimal places.
             </span>
           </div>
 
@@ -332,9 +424,71 @@ export function PotCreationDraft() {
                   : "Checking this browser for a saved draft…")}
         </p>
         <p className="pot-create-unavailable">
-          Onchain creation is not available yet. Saving here does not create a pot or request a
-          wallet transaction.
+          {rawFactoryAddress && !factoryAddress
+            ? "Pot creation is unavailable because NEXT_PUBLIC_POT_FACTORY_ADDRESS is invalid."
+            : !factoryAddress
+              ? "Onchain creation is disabled until a deployed Base Sepolia factory is configured."
+              : isFactoryLoading
+                ? "Verifying the configured factory and settlement token…"
+                : isFactoryReadError
+                  ? "The configured address could not be verified as a POT factory on Base Sepolia."
+                  : factoryToken && !factoryUsesUsdc
+                    ? "Pot creation is disabled: this factory does not use the verified Circle Base Sepolia USDC contract."
+                    : !builderDataSuffix
+                      ? "Pot creation is disabled until a Base Builder Code is configured."
+                      : !isConnected
+                        ? "Connect a wallet to create this pot on Base Sepolia."
+                        : wrongNetwork
+                          ? "Switch your connected wallet to Base Sepolia before creating a pot."
+                          : "A transaction is sent only after you confirm it in your wallet. Pot purpose stays in this browser and is not included onchain."}
         </p>
+        {showPreview && (
+          <div className="pot-create-submit">
+            {!isConnected && <Link href="/connect">Connect wallet</Link>}
+            {wrongNetwork && (
+              <button
+                disabled={isSwitchingChain}
+                onClick={() => switchChain({ chainId: supportedChain.id })}
+                type="button"
+              >
+                {isSwitchingChain ? "Switching network…" : `Switch to ${supportedChain.name}`}
+              </button>
+            )}
+            <button
+              className="pot-create-preview-button"
+              disabled={!creationReady || isWritePending || isReceiptLoading}
+              onClick={() => void createPot()}
+              type="button"
+            >
+              {isWritePending
+                ? "Confirm in your wallet…"
+                : isReceiptLoading
+                  ? "Waiting for Base Sepolia confirmation…"
+                  : "Create pot on Base Sepolia"}
+            </button>
+          </div>
+        )}
+        {(transactionError || writeError || switchChainError || isReceiptError) && (
+          <p className="pot-form-errors" role="alert">
+            {transactionError ||
+              writeError?.message ||
+              switchChainError?.message ||
+              "The transaction was submitted but its confirmation could not be verified. Check the transaction in the Base Sepolia explorer before retrying."}
+          </p>
+        )}
+        {transactionHash && (
+          <p className="pot-create-storage-message" role="status" aria-live="polite">
+            {receipt?.status === "reverted"
+              ? <>Transaction reverted. <a href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`} rel="noreferrer" target="_blank">Inspect the failed transaction</a>.</>
+              : receipt?.status === "success"
+              ? createdPotAddress
+                ? <>Pot created at <a href={`${supportedChain.blockExplorers.default.url}/address/${createdPotAddress}`} rel="noreferrer" target="_blank">{createdPotAddress}</a>. <a href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`} rel="noreferrer" target="_blank">View transaction</a>.</>
+                : <>Transaction confirmed, but no PotCreated event was found. <a href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`} rel="noreferrer" target="_blank">Inspect the transaction</a> before retrying.</>
+              : isReceiptError
+                ? <>Could not verify the transaction receipt. <a href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`} rel="noreferrer" target="_blank">Check its status before retrying</a>.</>
+                : <>Transaction submitted. <a href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`} rel="noreferrer" target="_blank">View pending transaction</a>.</>}
+          </p>
+        )}
       </section>
 
       <aside className="pot-create-preview" aria-live="polite">
@@ -352,7 +506,7 @@ export function PotCreationDraft() {
                 <>
                   <div>
                     <dt>Goal</dt>
-                    <dd>{draft.target} · token not configured</dd>
+                    <dd>{draft.target} USDC</dd>
                   </div>
                   <div>
                     <dt>Deadline</dt>
@@ -362,12 +516,12 @@ export function PotCreationDraft() {
               )}
               <div>
                 <dt>Minimum contribution</dt>
-                <dd>{draft.minimum} · token not configured</dd>
+                <dd>{draft.minimum} USDC</dd>
               </div>
             </dl>
             <p className="pot-create-preview-note">
-              Local preview only. The settlement token and its precision are not configured, and
-              nothing has been saved.
+              The pot name and settlement rules are sent to the contract. Purpose text stays in
+              this browser and is not published.
             </p>
           </>
         ) : (

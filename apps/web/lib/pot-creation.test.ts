@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   compareAmounts,
+  getPotFactoryCreateArguments,
   isPositiveAmount,
   validatePotDraft,
   type PotDraft,
 } from "./pot-creation";
 
 const now = Date.UTC(2030, 0, 1);
+const uint256Max = (BigInt(1) << BigInt(256)) - BigInt(1);
+const formatUsdcBaseUnits = (baseUnits: bigint) =>
+  `${baseUnits / BigInt(1_000_000)}.${String(baseUnits % BigInt(1_000_000)).padStart(6, "0")}`;
 const validTargetDraft: PotDraft = {
   name: "Group trip",
   purpose: "A shared trip",
@@ -18,11 +22,23 @@ const validTargetDraft: PotDraft = {
 
 describe("isPositiveAmount", () => {
   it("accepts positive decimal amounts up to the supported precision", () => {
-    expect(isPositiveAmount("0.000000000000000000000000000000000001")).toBe(true);
-    expect(isPositiveAmount(`${"9".repeat(78)}.${"1".repeat(36)}`)).toBe(true);
+    expect(isPositiveAmount("0.000001")).toBe(true);
+    expect(isPositiveAmount("900719925474099300.123456")).toBe(true);
+    expect(isPositiveAmount(formatUsdcBaseUnits(uint256Max))).toBe(true);
+    expect(isPositiveAmount(formatUsdcBaseUnits(uint256Max + BigInt(1)))).toBe(false);
   });
 
-  it.each(["0", "0.000", "-1", "01", "1.", ".5", "1e2", "1.1234567890123456789012345678901234567"])(
+  it.each([
+    "0",
+    "0.000000",
+    "-1",
+    "01",
+    "1.",
+    ".5",
+    "1e2",
+    "1.0000001",
+    "9".repeat(78),
+  ])(
     "rejects invalid or non-positive amount %s",
     (amount) => {
       expect(isPositiveAmount(amount)).toBe(false);
@@ -73,6 +89,31 @@ describe("validatePotDraft", () => {
         now,
       ),
     ).toEqual([]);
+  });
+
+  it("encodes USDC values in six-decimal base units and clears flexible target rules", () => {
+    expect(getPotFactoryCreateArguments(validTargetDraft, now)).toEqual([
+      "Group trip",
+      "",
+      true,
+      BigInt(250_000_000),
+      BigInt(Math.floor(new Date(validTargetDraft.deadline).getTime() / 1000)),
+      BigInt(1_000_000),
+    ]);
+
+    expect(
+      getPotFactoryCreateArguments(
+        { ...validTargetDraft, mode: "flexible", target: "", deadline: "" },
+        now,
+      ),
+    ).toEqual([
+      "Group trip",
+      "",
+      false,
+      BigInt(0),
+      BigInt(0),
+      BigInt(1_000_000),
+    ]);
   });
 
   it("counts purpose text by Unicode code points", () => {

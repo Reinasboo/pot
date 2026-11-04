@@ -112,6 +112,22 @@ test("validates goal rules and previews a flexible pot", async ({ page }) => {
   await expect(preview).not.toContainText("Funding goal");
 });
 
+test("keeps onchain creation disabled without a verified factory", async ({ page }) => {
+  await page.goto("/create");
+  await page.getByLabel("Pot name").fill("Test pot");
+  await page.getByLabel("Funding goal").fill("25");
+  await page.getByLabel("Minimum contribution").fill("1");
+  await page.locator("#pot-deadline").fill(
+    new Date(Date.now() + 86_400_000).toISOString().slice(0, 16),
+  );
+  await page.getByRole("button", { name: "Preview pot rules" }).click();
+
+  await expect(page.getByRole("button", { name: "Create pot on Base Sepolia" })).toBeDisabled();
+  await expect(page.locator(".pot-create-unavailable")).toContainText(
+    "Onchain creation is disabled until a deployed Base Sepolia factory is configured.",
+  );
+});
+
 test("restores and clears a saved local draft only after confirmation", async ({ page }) => {
   await page.goto("/create");
   await page.getByLabel("Pot name").fill("Saved trip");

@@ -10,6 +10,13 @@ describe("Builder Code attribution", () => {
     expect(getBuilderDataSuffix("   ")).toBeUndefined();
   });
 
+  it("fails closed for Builder Codes that exceed the ERC-8021 length limit", () => {
+    expect(getBuilderDataSuffix("A".repeat(256))).toBeUndefined();
+    expect(() => requireBuilderDataSuffix("A".repeat(256))).toThrow(
+      "Base transactions are disabled until NEXT_PUBLIC_BASE_BUILDER_CODE contains a valid Builder Code of 255 bytes or fewer.",
+    );
+  });
+
   it("creates an ERC-8021 suffix from a configured public Builder Code", () => {
     const suffix = getBuilderDataSuffix("POT-TEST-CODE");
 
@@ -18,7 +25,7 @@ describe("Builder Code attribution", () => {
 
   it("fails closed when a transaction requires attribution but no code is configured", () => {
     expect(() => requireBuilderDataSuffix("")).toThrow(
-      "Base transactions are disabled until NEXT_PUBLIC_BASE_BUILDER_CODE is configured.",
+      "Base transactions are disabled until NEXT_PUBLIC_BASE_BUILDER_CODE contains a valid Builder Code of 255 bytes or fewer.",
     );
   });
 

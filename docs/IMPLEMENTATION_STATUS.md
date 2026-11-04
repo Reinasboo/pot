@@ -49,8 +49,11 @@ Completed:
   code present, USDC, 6 decimals); documented test-only organizer/contributor wallet setup and
   added a read-only balance preflight script.
 - Added ERC-8021 Builder Code suffix generation at Wagmi client level and a fail-closed helper for
-  future transaction actions. The public code is not configured yet and transaction flows remain
-  disabled.
+  transaction actions. The public code is not configured yet, so the create flow remains disabled.
+- Wired the create-pot form to the factory ABI with USDC base-unit conversion, Base Sepolia
+  network gating, onchain factory-token verification, Builder Code gating, transaction
+  confirmation, and explorer-linked result states. The flow remains unavailable until a factory
+  address and Builder Code are configured.
 - Added GitHub Actions checks for web lint, unit tests, production build, and Foundry formatting
   and tests, including browser tests on Chromium.
 - Added copy-link and native device-share actions to public pot pages.
@@ -64,7 +67,7 @@ Still outstanding in this milestone:
 - Verify wallet connection/network switching using an installed wallet.
 - Run the indexer against Supabase and a deployed Base Sepolia factory; validate reorg recovery.
 - Create and fund the user's two dedicated Base Sepolia test wallets, then run the wallet preflight.
-- Obtain and configure a Builder Code before transaction/deployment flows can be tested.
+- Obtain and configure a Builder Code before pot creation/deployment flows can be tested.
 - Verify GitHub Actions when the account billing lock is resolved.
 
 ## Build phases
@@ -76,14 +79,14 @@ Still outstanding in this milestone:
 | 2. Wallet onboarding | In progress | Verify connection and network switching with real wallet providers; test rejection, disconnection, and unsupported-network recovery. |
 | 3. Smart contracts | In progress | Independent security review and verified token/deployment configuration remain outstanding. |
 | 4. Database and indexing | Implemented locally | Apply migrations and run against a configured Supabase project and deployed factory; live recovery/reconciliation remains to validate. |
-| 5. Core application | In progress | Public pot page, indexed dashboard, and local creation-rule draft flow are implemented; onchain creation, private-pot access, contributions, payout, and refunds remain. Circle Base Sepolia USDC is verified; dedicated test wallets and Builder Code are not configured. |
+| 5. Core application | In progress | Create-pot transaction flow is wired but gated on a deployed verified factory and Builder Code. Contributions, private-pot access, payout, and refunds remain. Circle Base Sepolia USDC is verified; dedicated test wallets and Builder Code are not configured. |
 | 6. Polish and demo | In progress | Verify CI; testnet flow, remaining responsive/error-state review, and repeatable two-wallet demo remain. |
 | 7. Deployment and submission | Not started | Testnet deployment, contract verification, clean-session checks, final documentation. |
 
 ## Integration gates
 
-- No wallet or contract transaction code should be considered complete until a Builder Code is
-  available for the Base transaction-attribution requirement.
+- Transaction code must use the Wagmi ERC-8021 suffix and fail closed until a Builder Code is
+  configured for the Base transaction-attribution requirement.
 - Do not configure a USDC address until it has been verified from an authoritative Base Sepolia
   source.
 - Do not claim live contributions, deployed contracts, indexing, refunds, or payouts until each is

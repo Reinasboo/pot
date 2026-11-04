@@ -17,13 +17,15 @@ Wallet onboarding uses wagmi, viem, and React Query, with a client-side provider
 Do not restructure the repository to match a target layout unless the existing implementation
 needs it.
 
-The current wallet route supports Coinbase Wallet and injected providers. It requests account
-access only; transaction signing and payment flows are not implemented. The Base Sepolia chain ID
-and explorer configuration come from viem's chain definition. The configured public RPC is
-appropriate only for testnet development, not production.
+The current wallet route supports Coinbase Wallet and injected providers. Wallet connection
+requests account access; it does not sign a transaction. The only implemented write flow is gated
+pot creation on Base Sepolia; contribution, payout, and refund transactions are not implemented.
+The Base Sepolia chain ID and explorer configuration come from viem's chain definition. The
+configured public RPC is appropriate only for testnet development, not production.
 The Wagmi client appends an ERC-8021 Builder Code suffix when the public
-`NEXT_PUBLIC_BASE_BUILDER_CODE` value is configured. Transaction code must call the
-fail-closed attribution guard and must not be added until a valid Builder Code is configured.
+`NEXT_PUBLIC_BASE_BUILDER_CODE` value is configured. Every transaction flow must call the
+fail-closed attribution guard; pot creation remains disabled until a code and verified factory are
+configured.
 
 The initial contract implementation is in `contracts/src`. A factory is deployed with one
 settlement token and creates isolated pot instances. Settlement rules and tests are documented in
@@ -54,13 +56,15 @@ Supabase, scoped to the connected wallet address and Base Sepolia. It does not s
 claim that the cached list is complete; private pots and creations not yet indexed are excluded.
 Each pot page separately verifies factory registration and reads its financial state from chain.
 
-The `/create` route currently validates the pot name, optional purpose, settlement mode,
-human-readable goal, minimum contribution, and target-pot deadline in the browser, then previews the rules. Amounts
-remain human-readable strings because no settlement token or token decimals are configured. The
-form can optionally save a versioned draft to browser `localStorage`; draft content stays on that
-device and has no server sync or wallet dependency. The screen detects a saved draft, confirms
-before overwriting it, and confirms before restoring over non-empty form values or deleting it.
-Older local drafts without a purpose remain restorable. This is not an onchain create flow.
+The `/create` route validates the pot name, optional purpose, settlement mode, six-decimal USDC
+goal/minimum, and target-pot deadline before previewing rules. A factory create call is available
+only when the connected wallet is on Base Sepolia, the configured factory reports Circle's
+verified Base Sepolia USDC as its token, and a Builder Code is configured for Wagmi attribution.
+The wallet prompts for transaction confirmation; the UI waits for the receipt and extracts the
+`PotCreated` event before showing the new pot address. Purpose text remains local and is not
+uploaded or included in the contract call. The form can optionally save a versioned draft to
+browser `localStorage`; draft content stays on that device and has no server sync. It confirms
+before overwriting, restoring over non-empty form values, or deleting a saved draft.
 
 ## Financial flow
 

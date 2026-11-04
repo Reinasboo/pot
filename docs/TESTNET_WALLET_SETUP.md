@@ -64,14 +64,17 @@ redact the configured URL.
 
 The following are still required before deploying or sending a transaction:
 
-- Obtain a Builder Code in [Base developer settings](https://base.dev/) and wire ERC-8021
-  attribution into the Wagmi transaction client. The app accepts this public code through
-  `NEXT_PUBLIC_BASE_BUILDER_CODE`; without it, transaction helpers must fail closed. Do not send
-  un-attributed Base transactions.
-- Review the deployment parameters and deploy the factory using a funded test-only deployer.
-- Configure and verify the deployed factory address and deployment block.
-- Implement the pot creation, USDC approval/contribution, payout, and refund flows; none is
-  currently submitted by the app.
+- Obtain a Builder Code in [Base developer settings](https://base.dev/) and set the public code in
+  `NEXT_PUBLIC_BASE_BUILDER_CODE`. ERC-8021 attribution is wired into the Wagmi client and the
+  create flow fails closed without it. Do not send un-attributed Base transactions.
+- Deploy and verify `PotFactory` with Circle's Base Sepolia USDC address as its immutable token,
+  using a funded test-only deployer and reviewed constructor parameters.
+- Set both `NEXT_PUBLIC_POT_FACTORY_ADDRESS` and `POT_FACTORY_ADDRESS` to the verified factory
+  address. Set `POT_INDEXER_START_BLOCK` to its deployment block.
+- Configure and validate Supabase as documented in `INDEXING.md` before relying on public pot
+  pages or indexed activity.
+- Pot creation has a client flow, but cannot submit before the checks above. USDC approval and
+  contribution, payout, and refund flows are not implemented yet.
 - Test from the organizer and contributor browser profiles and verify every transaction on
   Base Sepolia explorer.
 

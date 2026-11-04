@@ -1,4 +1,9 @@
+import { parseUnits } from "viem";
+
 export type SettlementMode = "target" | "flexible";
+export const SETTLEMENT_TOKEN_DECIMALS = 6;
+
+const UINT256_MAX = (BigInt(1) << BigInt(256)) - BigInt(1);
 
 export type PotDraft = {
   name: string;
@@ -10,8 +15,10 @@ export type PotDraft = {
 };
 
 export function isPositiveAmount(value: string): boolean {
-  if (!/^(?:0|[1-9]\d{0,77})(?:\.\d{1,36})?$/.test(value)) return false;
-  return value.split(".").some((part) => /[1-9]/.test(part));
+  if (!/^(?:0|[1-9]\d{0,77})(?:\.\d{1,6})?$/.test(value)) return false;
+  const [whole, fraction = ""] = value.split(".");
+  const baseUnits = BigInt(`${whole}${fraction.padEnd(SETTLEMENT_TOKEN_DECIMALS, "0")}`);
+  return baseUnits > BigInt(0) && baseUnits <= UINT256_MAX;
 }
 
 export function compareAmounts(left: string, right: string): number {
@@ -46,12 +53,12 @@ export function validatePotDraft(draft: PotDraft, now = Date.now()): string[] {
   }
 
   if (!isPositiveAmount(draft.minimum)) {
-    errors.push("Enter a minimum contribution greater than zero, with up to 36 decimal places.");
+    errors.push("Enter a minimum contribution greater than zero, with up to 6 decimal places.");
   }
 
   if (draft.mode === "target") {
     if (!isPositiveAmount(draft.target)) {
-      errors.push("Enter a goal greater than zero, with up to 36 decimal places.");
+      errors.push("Enter a goal greater than zero, with up to 6 decimal places.");
     }
     if (
       isPositiveAmount(draft.target) &&
@@ -71,4 +78,29 @@ export function validatePotDraft(draft: PotDraft, now = Date.now()): string[] {
   }
 
   return errors;
+}
+
+export function getPotFactoryCreateArguments(
+  draft: PotDraft,
+  now = Date.now(),
+): readonly [string, string, boolean, bigint, bigint, bigint] {
+  const errors = validatePotDraft(draft, now);
+  if (errors.length > 0) throw new Error(errors.join(" "));
+
+  const targetBased = draft.mode === "target";
+  const deadlineSeconds = targetBased
+    ? BigInt(Math.floor(new Date(draft.deadline).getTime() / 1000))
+    : BigInt(0);
+  if (deadlineSeconds >= (BigInt(1) << BigInt(64))) {
+    throw new Error("The pot deadline exceeds the contract's supported range.");
+  }
+
+  return [
+    draft.name.trim(),
+    "",
+    targetBased,
+    targetBased ? parseUnits(draft.target, SETTLEMENT_TOKEN_DECIMALS) : BigInt(0),
+    deadlineSeconds,
+    parseUnits(draft.minimum, SETTLEMENT_TOKEN_DECIMALS),
+  ];
 }

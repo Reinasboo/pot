@@ -2789,6 +2789,42 @@ a {
   outline-offset: 3px;
 }
 
+.pot-create-preview-button:disabled {
+  border-color: #b7beb0;
+  background: #dce1d7;
+  color: #667064;
+  cursor: not-allowed;
+}
+
+.pot-create-submit {
+  display: grid;
+  gap: 10px;
+}
+
+.pot-create-submit > a {
+  color: var(--green-ink);
+  font-size: 11px;
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+
+.pot-create-submit > button:not(.pot-create-preview-button) {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pot-create-submit > button:focus-visible {
+  outline: 3px solid #91bd58;
+  outline-offset: 3px;
+}
+
 .pot-draft-actions {
   display: flex;
   flex-wrap: wrap;
