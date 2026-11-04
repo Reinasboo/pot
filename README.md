@@ -4,19 +4,26 @@ POT is a group-payment product in development. It is designed to help people cre
 fundraising pots, invite contributors, track confirmed USDC contributions, and settle funds under
 clear rules on Base.
 
-The app currently includes a product landing page, Base Sepolia wallet onboarding, a wallet-free
-public pot route, a local-only pot planning flow, local factory/pot contract prototypes with
-Foundry tests, and an event-indexer implementation. The contracts have not been deployed, and
-live contributions, payouts, refunds, and database indexing have not been validated against
-deployed services. The landing page shows settlement-rule examples, not balances or live activity.
+The app currently includes a product landing page, Base Sepolia wallet onboarding, a public pot
+page, an organizer dashboard, and a pot creation form. Creation, contribution, payout, and refund
+transaction flows are implemented with chain checks, receipt handling, and Builder Code gating.
+They remain unavailable until a verified factory, Builder Code, and test environment are configured;
+no live financial journey has been validated against deployed services. The contracts have not
+been deployed, and the landing page shows settlement-rule examples rather than balances or live
+activity.
 
 ## Project structure
 
 - `apps/web` — Next.js App Router application.
 - `/connect` — wallet onboarding for Coinbase Wallet and injected wallets on Base Sepolia.
-- `/dashboard` — public, indexed pots associated with the connected wallet.
-- `/create` — configure settlement rules, preview a pot, and optionally save a local browser draft; no pot is deployed.
-- `/pot/{address}` — public read-only view of a deployed and indexed pot.
+- `/roadmap` — directly accessible summary of current and planned product stages.
+- `/dashboard` — public, indexed pots associated with the connected wallet, with chain-verified
+  financial amounts for the listed pots. Discovery is bounded and does not include private,
+  undiscovered, or unindexed pots.
+- `/create` — configure settlement rules, preview a pot, optionally save a local browser draft,
+  and create onchain when the factory, wallet, network, token, and Builder Code checks pass.
+- `/pot/{address}` — public pot state and indexed activity, with contribution and settlement
+  actions that remain gated until the required deployment and attribution settings are configured.
 - `contracts` — Foundry factory and pot contracts with a local test suite; not deployed.
 - `supabase` — pot metadata/event schema and RLS migration; no project configured yet.
 - `docs` — product, architecture, roadmap, security, and deployment notes.
@@ -31,9 +38,10 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Next.js. The application currently needs no wallet, database, or
-environment variables to render. Connecting a wallet requires a compatible wallet provider in
-the browser.
+Open the local URL printed by Next.js. The landing page and local pot planner can render without
+wallet or database configuration. Public pot data and dashboard reads require Base Sepolia RPC,
+factory, and Supabase settings; transaction flows additionally require a deployed verified
+factory, wallet, and public Builder Code. See `apps/web/.env.example` and the deployment notes.
 
 ## Checks
 

@@ -1,3 +1,5 @@
+import { RoadmapSection } from "@/components/roadmap-section";
+
 export const metadata = {
   title: "POT — Shared plans, clear money rules",
   description:
@@ -24,41 +26,6 @@ const useCases = [
     number: "04",
     title: "Shared purchases",
     description: "Coordinate the costs of the things your friends, family, or team need together.",
-  },
-];
-
-const roadmap = [
-  {
-    number: "01",
-    status: "Prototype",
-    title: "Clear pot rules",
-    description: "The first step is making a shared plan and its settlement terms easy to understand.",
-    items: ["Local rules preview", "Goal and deadline options", "Public pot page prototype", "No live payments yet"],
-    current: true,
-  },
-  {
-    number: "02",
-    status: "Planned",
-    title: "Social experience",
-    description: "Make shared progress more visible, celebratory, and easy to pass along.",
-    items: ["Activity feeds", "Reactions and milestones", "Shareable cards", "Public pot discovery"],
-    current: false,
-  },
-  {
-    number: "03",
-    status: "Planned",
-    title: "Organizers and businesses",
-    description: "More useful tools for the people bringing groups together.",
-    items: ["Creator collections", "Organizer analytics", "Branded pot pages", "Premium management tools"],
-    current: false,
-  },
-  {
-    number: "04",
-    status: "Future vision",
-    title: "POT infrastructure",
-    description: "Make group payments useful in more products and experiences.",
-    items: ["Developer API", "Embedded collections", "Merchant integrations", "Additional network support"],
-    current: false,
   },
 ];
 
@@ -237,32 +204,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="roadmap-section" id="roadmap">
-        <div className="section-wrap">
-          <div className="roadmap-heading">
-            <div>
-              <p className="eyebrow">Built in stages, with purpose</p>
-              <h2>Where POT is headed.</h2>
-            </div>
-            <p>Today’s focus is core group payments. The rest is a roadmap—not a promise that these features are live.</p>
-          </div>
-          <div className="roadmap-grid">
-            {roadmap.map((stage) => (
-              <article className={`roadmap-card${stage.current ? " roadmap-current" : ""}`} key={stage.number}>
-                <div className="roadmap-card-top">
-                  <span>{stage.number}</span>
-                  <span className="roadmap-status">{stage.status}</span>
-                </div>
-                <h3>{stage.title}</h3>
-                <p>{stage.description}</p>
-                <ul>
-                  {stage.items.map((item) => <li key={item}>{item}</li>)}
-                </ul>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+      <RoadmapSection />
 
       <section className="closing-section section-wrap">
         <div className="closing-mark"><PotMark /></div>
@@ -279,7 +221,7 @@ export default function Home() {
         <p>Money moves better together.</p>
         <div className="footer-links">
           <a href="#how-it-works">How it works</a>
-          <a href="#roadmap">Roadmap</a>
+          <a href="/roadmap">Roadmap</a>
         </div>
         <span className="footer-note">A work in progress. No live contributions yet.</span>
       </footer>

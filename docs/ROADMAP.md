@@ -13,13 +13,12 @@ release dates are promised.
 - Contract-enforced payout and refund rules.
 - Transaction verification.
 
-The implementation now includes Base Sepolia wallet onboarding, local factory/pot contract
-prototypes, a recoverable event-indexer implementation, and a wallet-free public pot read page.
-It also includes a read-only dashboard of indexed public pots for a connected organizer wallet.
-The `/create` screen can validate and preview local rules and optionally save an unsubmitted draft
-in the browser, but does not deploy a pot. The contracts and indexer are not deployed; onchain pot
-creation, live contributions, payout/refund transactions, and their full end-to-end verification
-remain to be built.
+The implementation includes Base Sepolia wallet onboarding, local factory/pot contract
+prototypes, a recoverable event-indexer implementation, and a wallet-free public pot page. The
+dashboard lists bounded sets of indexed public pots and shows chain-verified amounts for those
+pots. Create, contribute, payout, and refund flows are wired with transaction and receipt handling,
+but remain gated until a verified factory, Builder Code, and test environment are configured. The
+contracts and indexer are not deployed, so the complete onchain journey has not been validated.
 
 ## 02 — Social experience
 

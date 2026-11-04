@@ -867,6 +867,7 @@ a {
   color: #9eaa98;
 }
 
+.roadmap-heading h1,
 .roadmap-heading h2 {
   margin: 0;
   font-size: clamp(35px, 4vw, 49px);
@@ -1310,6 +1311,7 @@ a {
     margin-bottom: 30px;
   }
 
+  .roadmap-heading h1,
   .roadmap-heading h2 {
     font-size: 38px;
   }
@@ -2672,6 +2674,42 @@ a {
   color: var(--ink);
 }
 
+.organizer-dashboard-totals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.organizer-dashboard-totals article {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+}
+
+.organizer-dashboard-totals article > span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.organizer-dashboard-totals strong {
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+
+.organizer-dashboard-totals small {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 .organizer-dashboard-content > .wallet-panel {
   max-width: 520px;
   margin-inline: auto;
@@ -2873,6 +2911,16 @@ a {
 
   .organizer-dashboard-intro > p:not(.pot-eyebrow) {
     font-size: 13px;
+  }
+
+  .organizer-dashboard-totals {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 26px;
+  }
+
+  .organizer-dashboard-totals article {
+    padding: 15px;
   }
 
   .organizer-pot-cards a {

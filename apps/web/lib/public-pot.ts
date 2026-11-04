@@ -7,9 +7,11 @@ import {
   parseAbi,
 } from "viem";
 import { baseSepolia } from "viem/chains";
+import { circleBaseSepoliaUsdc } from "./pot-factory";
 
 const potFactoryAbi = parseAbi([
   "function isPot(address pot) view returns (bool)",
+  "function token() view returns (address)",
 ]);
 
 const potAbi = parseAbi([
@@ -32,10 +34,15 @@ const potAbi = parseAbi([
 const tokenAbi = parseAbi([
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
+  "function balanceOf(address account) view returns (uint256)",
 ]);
 
 const MAX_PAGE_SIZE = 25;
 const MAX_CONTRIBUTION_EVENT_PAGE_SIZE = 250;
+const potBalanceAbi = parseAbi(["function token() view returns (address)"]);
+const potContributionAbi = parseAbi([
+  "function contributions(address contributor) view returns (uint256)",
+]);
 
 export class PublicPotError extends Error {
   constructor(
@@ -83,10 +90,12 @@ export type PublicOrganizerPot = {
   name: string;
   targetBased: boolean;
   createdBlock: string;
+  escrowBalance: string;
 };
 
 export type PublicParticipatedPot = PublicOrganizerPot & {
   lastContributionBlock: string;
+  contributedAmount: string;
 };
 
 export type PublicPotDetails = {
@@ -247,6 +256,150 @@ function getSupabaseEnvironment(): Pick<Environment, "supabaseUrl" | "supabaseAn
     supabaseUrl: parsedSupabaseUrl.toString().replace(/\/+$/, ""),
     supabaseAnonKey,
   };
+}
+
+async function getVerifiedPotAmounts(
+  addresses: readonly `0x${string}`[],
+  contributorAddress?: `0x${string}`,
+): Promise<Map<string, { escrowBalance: string; contributedAmount?: string }>> {
+  const amounts = new Map<string, { escrowBalance: string; contributedAmount?: string }>();
+  if (addresses.length === 0) return amounts;
+
+  const environment = getEnvironment();
+  const client = createPublicClient({
+    chain: baseSepolia,
+    transport: http(environment.rpcUrl),
+  });
+
+  let chainId: number;
+  let blockNumber: bigint;
+  try {
+    [chainId, blockNumber] = await Promise.all([client.getChainId(), client.getBlockNumber()]);
+  } catch (error) {
+    console.error(
+      "Could not read the Base Sepolia dashboard snapshot",
+      error instanceof Error ? error.name : "Unknown error",
+    );
+    throw new PublicPotError("Could not load verified pot amounts from Base Sepolia.", 502);
+  }
+  if (chainId !== baseSepolia.id) {
+    throw new PublicPotError(`Configured RPC returned chain ID ${chainId}, expected 84532.`, 503);
+  }
+
+  let tokenAddress: `0x${string}`;
+  let decimals: number;
+  let symbol: string;
+  try {
+    [tokenAddress, decimals, symbol] = await Promise.all([
+      client.readContract({
+        address: environment.factoryAddress,
+        abi: potFactoryAbi,
+        functionName: "token",
+        blockNumber,
+      }),
+      client.readContract({
+        address: circleBaseSepoliaUsdc,
+        abi: tokenAbi,
+        functionName: "decimals",
+        blockNumber,
+      }),
+      client.readContract({
+        address: circleBaseSepoliaUsdc,
+        abi: tokenAbi,
+        functionName: "symbol",
+        blockNumber,
+      }),
+    ]);
+  } catch (error) {
+    console.error(
+      "Could not verify settlement token for dashboard amounts",
+      error instanceof Error ? error.name : "Unknown error",
+    );
+    throw new PublicPotError("Could not verify Circle USDC on Base Sepolia.", 502);
+  }
+  if (
+    tokenAddress.toLowerCase() !== circleBaseSepoliaUsdc.toLowerCase() ||
+    decimals !== 6 ||
+    symbol !== "USDC"
+  ) {
+    throw new PublicPotError(
+      "The configured factory or settlement token does not match verified Circle Base Sepolia USDC.",
+      503,
+    );
+  }
+
+  const contracts = addresses.flatMap((address) => [
+    {
+      address: environment.factoryAddress,
+      abi: potFactoryAbi,
+      functionName: "isPot" as const,
+      args: [address] as const,
+    },
+    {
+      address,
+      abi: potBalanceAbi,
+      functionName: "token" as const,
+    },
+    {
+      address: circleBaseSepoliaUsdc,
+      abi: tokenAbi,
+      functionName: "balanceOf" as const,
+      args: [address] as const,
+    },
+    ...(contributorAddress
+      ? [{
+          address,
+          abi: potContributionAbi,
+          functionName: "contributions" as const,
+          args: [contributorAddress] as const,
+        }]
+      : []),
+  ]);
+
+  let results: readonly unknown[];
+  try {
+    results = await client.multicall({
+      contracts,
+      allowFailure: false,
+      blockNumber,
+    });
+  } catch (error) {
+    console.error(
+      "Could not read registered pot amounts from Base Sepolia",
+      error instanceof Error ? error.name : "Unknown error",
+    );
+    throw new PublicPotError("Could not load verified pot amounts from Base Sepolia.", 502);
+  }
+
+  const stride = contributorAddress ? 4 : 3;
+  for (let index = 0; index < addresses.length; index += 1) {
+    const offset = index * stride;
+    const isRegistered = results[offset];
+    const potToken = results[offset + 1];
+    const escrowBalance = results[offset + 2];
+    const contributedAmount = contributorAddress ? results[offset + 3] : undefined;
+    if (
+      isRegistered !== true ||
+      typeof potToken !== "string" ||
+      potToken.toLowerCase() !== circleBaseSepoliaUsdc.toLowerCase() ||
+      typeof escrowBalance !== "bigint" ||
+      (contributorAddress && typeof contributedAmount !== "bigint")
+    ) {
+      throw new PublicPotError(
+        "A dashboard pot could not be verified against the configured factory and Circle USDC.",
+        502,
+      );
+    }
+
+    amounts.set(addresses[index].toLowerCase(), {
+      escrowBalance: escrowBalance.toString(),
+      ...(typeof contributedAmount === "bigint"
+        ? { contributedAmount: contributedAmount.toString() }
+        : {}),
+    });
+  }
+
+  return amounts;
 }
 
 async function fetchSupabase<T>(
@@ -478,12 +631,22 @@ export async function getPublicOrganizerPots(
     isOrganizerPotRows,
   );
 
-  return rows.map((row) => ({
-    address: getAddress(row.address),
-    name: row.name,
-    targetBased: row.target_based,
-    createdBlock: row.created_block,
-  }));
+  const addresses = rows.map((row) => getAddress(row.address));
+  const amounts = await getVerifiedPotAmounts(addresses);
+  return rows.map((row, index) => {
+    const address = addresses[index];
+    const amount = amounts.get(address.toLowerCase());
+    if (!amount) {
+      throw new PublicPotError("Could not verify an organizer pot balance on Base Sepolia.", 502);
+    }
+    return {
+      address,
+      name: row.name,
+      targetBased: row.target_based,
+      createdBlock: row.created_block,
+      escrowBalance: amount.escrowBalance,
+    };
+  });
 }
 
 export async function getPublicParticipatedPots(
@@ -533,15 +696,21 @@ export async function getPublicParticipatedPots(
     isOrganizerPotRows,
   );
 
+  const addresses = potRows.map((pot) => getAddress(pot.address));
+  const amounts = await getVerifiedPotAmounts(addresses, contributorAddress);
   const pots = potRows.flatMap((pot) => {
-    const lastContributionBlock = latestContributionBlockByPot.get(pot.address.toLowerCase());
-    if (lastContributionBlock === undefined) return [];
+    const normalizedAddress = pot.address.toLowerCase();
+    const lastContributionBlock = latestContributionBlockByPot.get(normalizedAddress);
+    const amount = amounts.get(normalizedAddress);
+    if (lastContributionBlock === undefined || !amount?.contributedAmount) return [];
     return [{
       address: getAddress(pot.address),
       name: pot.name,
       targetBased: pot.target_based,
       createdBlock: pot.created_block,
       lastContributionBlock,
+      contributedAmount: amount.contributedAmount,
+      escrowBalance: amount.escrowBalance,
     }];
   });
   return pots.sort((left, right) => {

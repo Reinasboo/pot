@@ -5,10 +5,26 @@ test("landing page routes visitors to pot planning", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: /Make a plan/ })).toBeVisible();
   await expect(page.getByText("No live payments", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Roadmap" })).toHaveAttribute("href", "/roadmap");
   await page.getByRole("link", { name: "Plan a pot" }).first().click();
 
   await expect(page).toHaveURL(/\/create$/);
   await expect(page.getByRole("heading", { name: "Set the rules before you share." })).toBeVisible();
+});
+
+test("roadmap is directly accessible and labels gated MVP work", async ({ page }) => {
+  await page.goto("/roadmap");
+
+  await expect(page.getByRole("heading", { name: "Where POT is headed." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Core payments" })).toBeVisible();
+  await expect(page.getByText("Deployment, attribution, and two-wallet testing remain")).toBeVisible();
+  const dimensions = await page.evaluate(() => ({
+    documentWidth: document.documentElement.scrollWidth,
+    viewportWidth: document.documentElement.clientWidth,
+  }));
+  expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+  await page.locator("header").getByRole("link", { name: "Plan a pot" }).click();
+  await expect(page).toHaveURL(/\/create$/);
 });
 
 test("wallet onboarding explains safe Base Sepolia test setup", async ({ page }) => {
@@ -227,6 +243,7 @@ test("dashboard separates created pots from publicly indexed contributions", asy
           name: "Organizer pot",
           targetBased: true,
           createdBlock: "100",
+          escrowBalance: "25000001",
         },
       ]),
     }),
@@ -242,6 +259,8 @@ test("dashboard separates created pots from publicly indexed contributions", asy
           targetBased: false,
           createdBlock: "90",
           lastContributionBlock: "120",
+          contributedAmount: "5000000",
+          escrowBalance: "8000000",
         },
       ]),
     }),
@@ -260,6 +279,17 @@ test("dashboard separates created pots from publicly indexed contributions", asy
     `/pot/${participatedPotAddress}`,
   );
   await expect(page.getByText(/Last indexed contribution at block 120/)).toBeVisible();
+  await expect(page.locator(".organizer-dashboard-totals").getByText("25.000001 USDC")).toBeVisible();
+  await expect(page.locator(".organizer-dashboard-totals").getByText("5 USDC")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Pots you created" }).locator(".organizer-pot-cards"),
+  ).toContainText("25.000001 USDC currently held");
+  await expect(page.getByText(/8 USDC currently held/)).toBeVisible();
+  const dimensions = await page.evaluate(() => ({
+    documentWidth: document.documentElement.scrollWidth,
+    viewportWidth: document.documentElement.clientWidth,
+  }));
+  expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
 });
 
 test("restores and clears a saved local draft only after confirmation", async ({ page }) => {

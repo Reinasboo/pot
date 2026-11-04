@@ -45,14 +45,17 @@ roadmap but must not be presented as working functionality.
 ## Current implementation status
 
 The current implementation includes a branded landing page with a settlement-rules explainer,
-Base Sepolia wallet onboarding, a wallet-free public pot route, a read-only organizer list of
-indexed public pots, local factory/pot contract prototypes with Foundry tests, and a local
-event-indexing route/schema. The dashboard does not show private pots or unindexed creations. The
-contracts and indexer have not been deployed or run against a configured project, and there is no
-live contribution or settlement activity. Wallet connection has not yet been verified end-to-end
-with a separate installed wallet. Public pot pages include copy-link and native share actions.
-The `/create` screen validates configuration and previews the selected rules locally. Organizers
-may explicitly save and restore an unsubmitted draft in the same browser; no draft data is
-uploaded or sent onchain. Drafts can also include an optional purpose description for contributors.
-The form indicates when a local draft exists and asks for confirmation before replacing or
-removing saved values.
+Base Sepolia wallet onboarding, a public pot route, a wallet-aware dashboard, local factory/pot
+contract prototypes with Foundry tests, and a local event-indexing route/schema. The dashboard
+shows chain-verified financial amounts only for its bounded list of indexed public pots; it does
+not show private pots or undiscovered/unindexed creations. Create, contribution, payout, and refund
+flows are wired but gated. The contracts and indexer have not been deployed or run against a
+configured project, and there is no live contribution or settlement activity. Wallet connection
+has not yet been verified end-to-end with a separate installed wallet. Public pot pages include
+copy-link and native share actions.
+The `/create` screen validates configuration, previews the selected rules locally, and includes a
+factory submission flow that remains gated until its deployment and Builder Code prerequisites
+are configured. Organizers may explicitly save and restore an unsubmitted draft in the same
+browser; no draft data is uploaded or sent onchain. Drafts can also include an optional purpose
+description for contributors, but that purpose is not published. The form indicates when a local
+draft exists and asks for confirmation before replacing or removing saved values.

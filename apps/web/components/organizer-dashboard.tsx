@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount, useSwitchChain } from "wagmi";
 import { WalletConnection } from "@/components/wallet-connection";
-import type { PublicOrganizerPot, PublicParticipatedPot } from "@/lib/public-pot";
+import {
+  formatTokenAmount,
+  type PublicOrganizerPot,
+  type PublicParticipatedPot,
+} from "@/lib/public-pot";
 import { supportedChain } from "@/lib/wagmi";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -22,7 +26,9 @@ function isOrganizerPots(value: unknown): value is PublicOrganizerPot[] {
         typeof pot.name === "string" &&
         typeof pot.targetBased === "boolean" &&
         typeof pot.createdBlock === "string" &&
-        /^\d+$/.test(pot.createdBlock),
+        /^\d+$/.test(pot.createdBlock) &&
+        typeof pot.escrowBalance === "string" &&
+        /^\d+$/.test(pot.escrowBalance),
     )
   );
 }
@@ -40,13 +46,24 @@ function isParticipatedPots(value: unknown): value is PublicParticipatedPot[] {
         typeof pot.createdBlock === "string" &&
         /^\d+$/.test(pot.createdBlock) &&
         typeof pot.lastContributionBlock === "string" &&
-        /^\d+$/.test(pot.lastContributionBlock),
+        /^\d+$/.test(pot.lastContributionBlock) &&
+        typeof pot.contributedAmount === "string" &&
+        /^\d+$/.test(pot.contributedAmount) &&
+        typeof pot.escrowBalance === "string" &&
+        /^\d+$/.test(pot.escrowBalance),
     )
   );
 }
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
+}
+
+function formatUsdc(amount: string): string {
+  const [whole, fraction = ""] = formatTokenAmount(amount, 6).split(".");
+  const groupedWhole = BigInt(whole).toLocaleString();
+  const visibleFraction = fraction.replace(/0+$/, "");
+  return `${visibleFraction ? `${groupedWhole}.${visibleFraction}` : groupedWhole} USDC`;
 }
 
 async function fetchOrganizerPots(
@@ -117,6 +134,7 @@ export function OrganizerDashboard() {
     enabled: Boolean(address) && onSupportedNetwork,
     retry: false,
   });
+
   const {
     data: participatedPots,
     error: participatedError,
@@ -132,6 +150,14 @@ export function OrganizerDashboard() {
     enabled: Boolean(address) && onSupportedNetwork,
     retry: false,
   });
+  const totalEscrow = pots?.reduce(
+    (total, pot) => total + BigInt(pot.escrowBalance),
+    BigInt(0),
+  );
+  const totalWalletContributions = participatedPots?.reduce(
+    (total, pot) => total + BigInt(pot.contributedAmount),
+    BigInt(0),
+  );
 
   if (!isConnected || !address) {
     return (
@@ -159,6 +185,28 @@ export function OrganizerDashboard() {
         </p>
         <Link className="organizer-plan-link" href="/create">Plan a pot <span aria-hidden="true">→</span></Link>
       </div>
+
+      {onSupportedNetwork &&
+        !isLoading &&
+        !isError &&
+        !isParticipatedLoading &&
+        !isParticipatedError && (
+          <section className="organizer-dashboard-totals" aria-label="Verified dashboard totals">
+            <article>
+              <span>Held in public pots you created</span>
+              <strong>{formatUsdc(totalEscrow?.toString() ?? "0")}</strong>
+              <small>Current USDC balances read from Base Sepolia.</small>
+            </article>
+            <article>
+              <span>Gross contributions to listed public pots</span>
+              <strong>{formatUsdc(totalWalletContributions?.toString() ?? "0")}</strong>
+              <small>
+                Refunded amounts are not deducted. Excludes undiscovered, private, or unindexed
+                pots.
+              </small>
+            </article>
+          </section>
+        )}
 
       {!onSupportedNetwork ? (
         <section className="organizer-dashboard-notice" role="status">
@@ -215,7 +263,8 @@ export function OrganizerDashboard() {
                       <strong>{pot.name}</strong>
                       <span>
                         {pot.targetBased ? "Goal-based pot" : "Flexible pot"} · Created at block{" "}
-                        {BigInt(pot.createdBlock).toLocaleString()}
+                        {BigInt(pot.createdBlock).toLocaleString()} ·{" "}
+                        {formatUsdc(pot.escrowBalance)} currently held
                       </span>
                     </span>
                     <span className="organizer-pot-card-action" aria-hidden="true">Open →</span>
@@ -274,6 +323,8 @@ export function OrganizerDashboard() {
                       <span>
                         {pot.targetBased ? "Goal-based pot" : "Flexible pot"} · Last indexed
                         contribution at block {BigInt(pot.lastContributionBlock).toLocaleString()}
+                        · {formatUsdc(pot.contributedAmount)} gross contributed ·{" "}
+                        {formatUsdc(pot.escrowBalance)} currently held
                       </span>
                     </span>
                     <span className="organizer-pot-card-action" aria-hidden="true">Open →</span>

@@ -18,15 +18,14 @@ Do not restructure the repository to match a target layout unless the existing i
 needs it.
 
 The current wallet route supports Coinbase Wallet and injected providers. Wallet connection
-requests account access; it does not sign a transaction. The only implemented write flow is gated
-pot creation and gated USDC contributions on Base Sepolia; payout and refund transactions are not
-implemented.
+requests account access; it does not sign a transaction. Pot creation, USDC contributions,
+organizer payout, and contributor refunds are implemented as gated write flows on Base Sepolia;
+none has been validated against a deployed factory.
 The Base Sepolia chain ID and explorer configuration come from viem's chain definition. The
 configured public RPC is appropriate only for testnet development, not production.
 The Wagmi client appends an ERC-8021 Builder Code suffix when the public
 `NEXT_PUBLIC_BASE_BUILDER_CODE` value is configured. Every transaction flow must call the
-fail-closed attribution guard; pot creation remains disabled until a code and verified factory are
-configured.
+fail-closed attribution guard and remains disabled until a code and verified factory are configured.
 
 The initial contract implementation is in `contracts/src`. A factory is deployed with one
 settlement token and creates isolated pot instances. Settlement rules and tests are documented in
@@ -62,8 +61,10 @@ until a factory deployment and Builder Code are configured.
 The wallet dashboard at `/dashboard` reads public pots created by the connected wallet and pots
 with indexed confirmed contributions from that wallet, scoped to Base Sepolia. The participation
 list searches the 250 latest indexed contribution events and shows up to 25 distinct public pots;
-private pots and events not yet indexed are excluded. It does not show contribution totals. Each
-pot page separately verifies factory registration and reads its financial state from chain.
+private pots and events not yet indexed are excluded. The dashboard reads current escrow balances
+and contributor mappings directly from Base Sepolia at a consistent block, verifies the factory
+and Circle USDC, and shows totals only for the listed public pots. Each pot page separately
+verifies factory registration and reads its financial state from chain.
 
 The `/create` route validates the pot name, optional purpose, settlement mode, six-decimal USDC
 goal/minimum, and target-pot deadline before previewing rules. A factory create call is available
