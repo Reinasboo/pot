@@ -93,9 +93,12 @@ export default function Home() {
           <a href="#rules">Clear rules</a>
           <a href="/dashboard">My pots</a>
         </nav>
-        <a className="header-link" href="/create">
-          Plan a pot <ArrowIcon />
-        </a>
+        <div className="site-header-actions">
+          <a className="header-dashboard-link" href="/dashboard">My pots</a>
+          <a className="header-link" href="/create">
+            Plan a pot <ArrowIcon />
+          </a>
+        </div>
       </header>
 
       <section className="hero section-wrap" id="top">

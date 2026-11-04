@@ -127,6 +127,19 @@ a {
   font-weight: 700;
 }
 
+.site-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.header-dashboard-link {
+  display: none;
+  color: #4f5851;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .header-link svg,
 .button svg,
 .use-case > svg {
@@ -1061,6 +1074,14 @@ a {
 }
 
 @media (max-width: 900px) {
+  .desktop-nav {
+    display: none;
+  }
+
+  .header-dashboard-link {
+    display: inline-flex;
+  }
+
   .hero {
     gap: 20px;
   }
@@ -1120,6 +1141,14 @@ a {
     display: none;
   }
 
+  .site-header-actions {
+    gap: 12px;
+  }
+
+  .header-dashboard-link {
+    font-size: 10px;
+  }
+
   .header-link {
     gap: 5px;
     font-size: 10px;
@@ -1127,6 +1156,12 @@ a {
 
   .header-link svg {
     width: 14px;
+  }
+
+  .header-dashboard-link:focus-visible,
+  .header-link:focus-visible {
+    outline: 3px solid #91bd58;
+    outline-offset: 3px;
   }
 
   .hero {
