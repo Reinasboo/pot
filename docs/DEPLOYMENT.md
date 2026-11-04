@@ -49,11 +49,13 @@ The intended development network is Base Sepolia, chain ID `84532`. The document
 may be rate-limited; production deployments should use an appropriately configured provider and
 must not expose provider credentials in client-side code.
 
-No POT factory or USDC address is currently configured. Verify token and network configuration
-from authoritative sources before adding them. Never invent addresses or secrets.
+The Base Sepolia Supabase project is provisioned and its migrations are applied. No POT factory is
+deployed or configured, and no indexing has run. The verified Circle USDC address is documented
+in `TESTNET_WALLET_SETUP.md`; verify token and network configuration from authoritative sources
+before deployment. Never invent addresses or secrets.
 
-The event-indexing endpoint also requires a Supabase migration, a deployed factory, a verified
-factory start block, and the server-side settings documented in `INDEXING.md`. The endpoint is
+The event-indexing endpoint also requires a deployed factory, a verified factory start block,
+Base Sepolia RPC settings, and the server-side settings documented in `INDEXING.md`. The endpoint is
 protected with `INDEXER_CRON_SECRET`; schedule it only from a trusted server-side scheduler.
 The wallet-free public pot route additionally needs `SUPABASE_ANON_KEY` to load indexed display
 metadata and activity.

@@ -50,8 +50,10 @@ afterEach(() => {
 describe("pot metadata authorization", () => {
   it("binds a short-lived sign-in message to the pot, wallet, origin, and Base Sepolia", async () => {
     configureEnvironment();
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "sb_secret_test-only-key");
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${serviceRoleKey}`);
+      expect(new Headers(init?.headers).get("apikey")).toBe("sb_secret_test-only-key");
+      expect(new Headers(init?.headers).has("authorization")).toBe(false);
       return Response.json(true);
     });
     vi.stubGlobal("fetch", fetchMock);

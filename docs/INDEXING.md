@@ -2,8 +2,9 @@
 
 ## Status
 
-The repository includes a Supabase migration and a server-only Next.js indexer endpoint. The
-indexer has not been run against a configured Supabase project or deployed POT factory. It is not
+The repository includes Supabase migrations and a server-only Next.js indexer endpoint. A
+Base Sepolia Supabase project has been provisioned and all migrations have been applied. The
+indexer has not yet been run because no POT factory is deployed or configured. Supabase is not
 the financial source of truth; contract reads and events remain authoritative.
 
 The migration creates:
@@ -25,13 +26,16 @@ Set these server-side environment variables in `apps/web`:
 - `POT_INDEXER_CONFIRMATIONS`: number of blocks kept behind the current head; defaults to `64`.
 - `POT_INDEXER_BATCH_SIZE`: blocks claimed per request; defaults to `500`, maximum `2000`.
 - `SUPABASE_URL`: HTTPS Supabase project URL.
-- `SUPABASE_ANON_KEY`: Supabase anon/public key for read-only pot metadata and events. It may be
-  used by this server route; do not treat it as an authorization secret.
-- `SUPABASE_SERVICE_ROLE_KEY`: server-only service role key. Never use a `NEXT_PUBLIC_` prefix.
+- `SUPABASE_ANON_KEY`: Supabase publishable or legacy anon key for read-only pot metadata and
+  events. It may be used by this server route; do not treat it as an authorization secret.
+- `SUPABASE_SERVICE_ROLE_KEY`: server-only Supabase secret or legacy service-role key. Never use a
+  `NEXT_PUBLIC_` prefix. The metadata API sends modern `sb_secret_` keys as `apikey` only; legacy
+  service-role JWTs also use the `Authorization: Bearer` header.
 - `INDEXER_CRON_SECRET`: random secret of at least 32 characters.
 
-Apply migrations before invoking the indexer or publishing pot descriptions. The metadata editor
-also requires the service role key; it is used only by server routes and never sent to the browser.
+Apply migrations before invoking the indexer or publishing pot descriptions. Migrations are
+currently applied to the configured project. The metadata editor also requires the service role
+key; it is used only by server routes and never sent to the browser.
 
 ## Run a batch
 
@@ -69,9 +73,10 @@ over speed and can take multiple scheduled batches to catch up again.
 ## Validation and operational limits
 
 The web project lint/build validates the route and TypeScript types. Authentication and missing
-configuration responses were smoke-tested locally. A live end-to-end indexing run still requires
-a configured Supabase project, a deployed factory, its deployment block, and an HTTPS RPC endpoint.
-No live database or chain data is included in the repository.
+configuration responses were smoke-tested locally. The configured Supabase REST API was checked
+with its server secret and publishable keys after migrations; it currently contains no indexed pot
+or chain data. A live end-to-end indexing run still requires a deployed factory, its deployment
+block, and an HTTPS RPC endpoint.
 
 ## Public pot reads
 

@@ -28,7 +28,8 @@ activity.
   indexed.
 - `contracts` — Foundry factory and pot contracts with a local test suite; not deployed.
 - `supabase` — pot metadata/event schema and RLS migrations, including organizer-authorized public
-  description updates; no project configured yet.
+  description updates; a Base Sepolia project is provisioned and migrations are applied, but no
+  factory has been deployed or indexed.
 - `docs` — product, architecture, roadmap, security, and deployment notes.
 
 ## Run the web app

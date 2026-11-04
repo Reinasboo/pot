@@ -215,7 +215,11 @@ async function supabaseRequest(
   try {
     const headers = new Headers(init.headers);
     headers.set("apikey", environment.serviceRoleKey);
-    headers.set("authorization", `Bearer ${environment.serviceRoleKey}`);
+    if (environment.serviceRoleKey.startsWith("sb_secret_")) {
+      headers.delete("authorization");
+    } else {
+      headers.set("authorization", `Bearer ${environment.serviceRoleKey}`);
+    }
     headers.set("content-type", "application/json");
     response = await fetch(`${environment.supabaseUrl}/rest/v1/${path}`, {
       ...init,

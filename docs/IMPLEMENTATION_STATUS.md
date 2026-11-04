@@ -30,8 +30,11 @@ Completed:
 - Verified the indexer route's authentication and missing-configuration responses locally.
 - Added the Supabase migration, RLS policies, leased/recoverable cursor functions, and protected
   indexer route with confirmed-block indexing and a full rewind on detected cursor reorg.
-- Verified the web build/lint and endpoint authentication behavior. A live Supabase/factory run
-  remains pending configuration.
+- Provisioned a Base Sepolia Supabase project, applied all three migrations, configured its
+  publishable and server-only secret keys in the ignored local web environment, and verified
+  server-secret and public read access. The project currently has no indexed chain data.
+- Verified the web build/lint and endpoint authentication behavior. Live indexing still requires
+  a deployed factory, its deployment block, and Base Sepolia RPC configuration.
 - Added a wallet-free public pot route that verifies factory registration, reads the settlement
   state and token decimals from Base Sepolia, and displays indexed activity with explorer links.
 - Added a wallet-aware, read-only organizer dashboard for indexed public pots, scoped to the
@@ -94,8 +97,8 @@ Still outstanding in this milestone:
 | 1. Brand and website | In progress | Refine content and polish after core app flows are available. |
 | 2. Wallet onboarding | In progress | Verify connection and network switching with real wallet providers; test rejection, disconnection, and unsupported-network recovery. |
 | 3. Smart contracts | In progress | Independent security review and verified token/deployment configuration remain outstanding. |
-| 4. Database and indexing | Implemented locally | Apply migrations and run against a configured Supabase project and deployed factory; live recovery/reconciliation remains to validate. |
-| 5. Core application | In progress | Create, contribution, payout, and refund transaction flows are wired but gated on a deployed verified factory and Builder Code. Public dashboard totals cover only listed indexed pots; public description publishing requires the new migration and live Supabase/factory setup. Complete private-pot access is not implemented. Circle Base Sepolia USDC is verified; dedicated test wallets and Builder Code are not configured. |
+| 4. Database and indexing | Supabase configured | Project provisioned and migrations applied; run against a deployed factory and validate live indexing/reorg recovery. |
+| 5. Core application | In progress | Create, contribution, payout, and refund transaction flows are wired but gated on a deployed verified factory and Builder Code. Public dashboard totals cover only listed indexed pots; public description publishing requires the deployed factory and indexed public pot. Complete private-pot access is not implemented. Circle Base Sepolia USDC is verified; dedicated test wallets and Builder Code are not configured. |
 | 6. Polish and demo | In progress | Verify CI; testnet flow, remaining responsive/error-state review, and repeatable two-wallet demo remain. |
 | 7. Deployment and submission | Not started | Testnet deployment, contract verification, clean-session checks, final documentation. |
 
@@ -109,4 +112,5 @@ Still outstanding in this milestone:
   implemented and verified on testnet.
 - Contract tests use a local mock token. Passing tests do not imply an audit or guarantee safety.
 - The public metadata signature flow is locally implemented and tested, but remains unverified
-  against a deployed factory and configured Supabase project.
+  against a deployed factory. Supabase is configured and migrations are applied, but no indexed pot
+  exists yet.
