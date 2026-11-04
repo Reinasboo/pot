@@ -35,6 +35,7 @@ const tokenAbi = parseAbi([
 ]);
 
 const MAX_PAGE_SIZE = 25;
+const MAX_CONTRIBUTION_EVENT_PAGE_SIZE = 250;
 
 export class PublicPotError extends Error {
   constructor(
@@ -46,6 +47,23 @@ export class PublicPotError extends Error {
   }
 }
 
+function isContributionSearchRows(value: unknown): value is ContributionSearchRow[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (row) =>
+        isRecord(row) &&
+        typeof row.pot_address === "string" &&
+        /^0x[\da-fA-F]{40}$/.test(row.pot_address) &&
+        typeof row.block_number === "string" &&
+        /^\d+$/.test(row.block_number) &&
+        isRecord(row.event_data) &&
+        typeof row.event_data.contributor === "string" &&
+        /^0x[\da-fA-F]{40}$/.test(row.event_data.contributor),
+    )
+  );
+}
+
 export type PublicPotEvent = {
   transactionHash: `0x${string}`;
   logIndex: number;
@@ -54,11 +72,21 @@ export type PublicPotEvent = {
   eventData: Record<string, unknown>;
 };
 
+type ContributionSearchRow = {
+  pot_address: `0x${string}`;
+  block_number: string;
+  event_data: Record<string, unknown> & { contributor: string };
+};
+
 export type PublicOrganizerPot = {
   address: `0x${string}`;
   name: string;
   targetBased: boolean;
   createdBlock: string;
+};
+
+export type PublicParticipatedPot = PublicOrganizerPot & {
+  lastContributionBlock: string;
 };
 
 export type PublicPotDetails = {
@@ -456,6 +484,71 @@ export async function getPublicOrganizerPots(
     targetBased: row.target_based,
     createdBlock: row.created_block,
   }));
+}
+
+export async function getPublicParticipatedPots(
+  contributorInput: string,
+): Promise<PublicParticipatedPot[]> {
+  if (!isAddress(contributorInput)) {
+    throw new PublicPotError("This wallet address is not valid.", 400);
+  }
+
+  const contributorAddress = getAddress(contributorInput);
+  const contributor = contributorAddress.toLowerCase();
+  const environment = getSupabaseEnvironment();
+  const eventParameters = new URLSearchParams({
+    select: "pot_address,block_number,event_data",
+    chain_id: `eq.${baseSepolia.id}`,
+    event_name: "eq.ContributionMade",
+    "event_data->>contributor": `eq.${contributorAddress}`,
+    order: "block_number.desc,log_index.desc",
+    limit: String(MAX_CONTRIBUTION_EVENT_PAGE_SIZE),
+  });
+  const eventRows = await fetchSupabase(
+    environment,
+    `pot_events?${eventParameters.toString()}`,
+    isContributionSearchRows,
+  );
+
+  const latestContributionBlockByPot = new Map<string, string>();
+  for (const event of eventRows) {
+    if (event.event_data.contributor.toLowerCase() !== contributor) continue;
+    const potAddress = event.pot_address.toLowerCase();
+    if (!latestContributionBlockByPot.has(potAddress)) {
+      latestContributionBlockByPot.set(potAddress, event.block_number);
+    }
+  }
+  const potAddresses = [...latestContributionBlockByPot.keys()].slice(0, MAX_PAGE_SIZE);
+  if (potAddresses.length === 0) return [];
+
+  const potParameters = new URLSearchParams({
+    select: "address,name,target_based,created_block",
+    chain_id: `eq.${baseSepolia.id}`,
+    address: `in.(${potAddresses.join(",")})`,
+    is_public: "eq.true",
+  });
+  const potRows = await fetchSupabase(
+    environment,
+    `pots?${potParameters.toString()}`,
+    isOrganizerPotRows,
+  );
+
+  const pots = potRows.flatMap((pot) => {
+    const lastContributionBlock = latestContributionBlockByPot.get(pot.address.toLowerCase());
+    if (lastContributionBlock === undefined) return [];
+    return [{
+      address: getAddress(pot.address),
+      name: pot.name,
+      targetBased: pot.target_based,
+      createdBlock: pot.created_block,
+      lastContributionBlock,
+    }];
+  });
+  return pots.sort((left, right) => {
+    const leftBlock = BigInt(left.lastContributionBlock);
+    const rightBlock = BigInt(right.lastContributionBlock);
+    return leftBlock === rightBlock ? 0 : leftBlock > rightBlock ? -1 : 1;
+  });
 }
 
 export function formatTokenAmount(amount: string, decimals: number): string {

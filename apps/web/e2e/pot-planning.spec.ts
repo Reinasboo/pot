@@ -188,6 +188,80 @@ test("shows the shared pot contribution and settlement forms without enabling an
   }
 });
 
+test("dashboard separates created pots from publicly indexed contributions", async ({ page }) => {
+  const walletAddress = "0x1234567890123456789012345678901234567890";
+  const createdPotAddress = "0x1111111111111111111111111111111111111111";
+  const participatedPotAddress = "0x2222222222222222222222222222222222222222";
+  await page.addInitScript((address) => {
+    let authorized = false;
+    const listeners = new Map<string, Set<(value: string) => void>>();
+    const provider = {
+      isMetaMask: true,
+      request: async ({ method }: { method: string }) => {
+        if (method === "eth_chainId") return "0x14a34";
+        if (method === "eth_accounts") return authorized ? [address] : [];
+        if (method === "eth_requestAccounts") {
+          authorized = true;
+          return [address];
+        }
+        throw new Error(`Unsupported mocked wallet request: ${method}`);
+      },
+      on: (event: string, listener: (value: string) => void) => {
+        const eventListeners = listeners.get(event) ?? new Set();
+        eventListeners.add(listener);
+        listeners.set(event, eventListeners);
+      },
+      removeListener: (event: string, listener: (value: string) => void) => {
+        listeners.get(event)?.delete(listener);
+      },
+    };
+    Object.defineProperty(window, "ethereum", { configurable: true, value: provider });
+  }, walletAddress);
+  await page.route("**/api/pots?*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          address: createdPotAddress,
+          name: "Organizer pot",
+          targetBased: true,
+          createdBlock: "100",
+        },
+      ]),
+    }),
+  );
+  await page.route("**/api/pots/participating?*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          address: participatedPotAddress,
+          name: "Contributor pot",
+          targetBased: false,
+          createdBlock: "90",
+          lastContributionBlock: "120",
+        },
+      ]),
+    }),
+  );
+  await page.goto("/dashboard");
+  await page.getByRole("button", { name: /Injected/ }).click();
+
+  await expect(page.getByRole("heading", { name: "Pots you created" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Organizer pot/ })).toHaveAttribute(
+    "href",
+    `/pot/${createdPotAddress}`,
+  );
+  await expect(page.getByRole("heading", { name: "Pots you’ve contributed to" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Contributor pot/ })).toHaveAttribute(
+    "href",
+    `/pot/${participatedPotAddress}`,
+  );
+  await expect(page.getByText(/Last indexed contribution at block 120/)).toBeVisible();
+});
+
 test("restores and clears a saved local draft only after confirmation", async ({ page }) => {
   await page.goto("/create");
   await page.getByLabel("Pot name").fill("Saved trip");

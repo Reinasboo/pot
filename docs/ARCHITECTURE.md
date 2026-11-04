@@ -59,10 +59,11 @@ Both actions re-read the factory, token, caller-specific state, and contract eli
 writing, and wait for confirmation. Creation, contribution, payout, and refunds remain disabled
 until a factory deployment and Builder Code are configured.
 
-The organizer dashboard at `/dashboard` reads only public pot identity/configuration rows from
-Supabase, scoped to the connected wallet address and Base Sepolia. It does not show balances or
-claim that the cached list is complete; private pots and creations not yet indexed are excluded.
-Each pot page separately verifies factory registration and reads its financial state from chain.
+The wallet dashboard at `/dashboard` reads public pots created by the connected wallet and pots
+with indexed confirmed contributions from that wallet, scoped to Base Sepolia. The participation
+list searches the 250 latest indexed contribution events and shows up to 25 distinct public pots;
+private pots and events not yet indexed are excluded. It does not show contribution totals. Each
+pot page separately verifies factory registration and reads its financial state from chain.
 
 The `/create` route validates the pot name, optional purpose, settlement mode, six-decimal USDC
 goal/minimum, and target-pot deadline before previewing rules. A factory create call is available

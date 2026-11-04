@@ -2681,6 +2681,10 @@ a {
   border-top: 1px solid var(--line);
 }
 
+.organizer-participated-pot-list {
+  margin-top: 32px;
+}
+
 .organizer-pot-list-heading {
   display: flex;
   align-items: baseline;

@@ -82,3 +82,11 @@ database rows. The matching public UI is `/pot/{address}`.
 requested Base Sepolia organizer. It uses only the Supabase anon key and public RLS policy, and
 does not return balances or private pots. `/dashboard` uses this endpoint after wallet connection;
 the indexer may not yet include a recently created pot.
+
+`GET /api/pots/participating?contributor={address}` searches the 250 latest indexed
+`ContributionMade` events for that Base Sepolia wallet and returns up to 25 distinct public pots
+ordered by the latest matching contribution block. The `20261104000000_add_contributor_activity_index.sql`
+migration adds an expression index for that lookup. Results use the Supabase anon key and public
+RLS policies; private pots and contributions that have not yet passed the indexer's confirmation
+depth are excluded. The dashboard does not calculate an all-time contribution total from this
+bounded activity query.
