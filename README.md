@@ -4,6 +4,9 @@ POT is a group-payment product in development. It is designed to help people cre
 fundraising pots, invite contributors, track confirmed USDC contributions, and settle funds under
 clear rules on Base.
 
+The public frontend is deployed at <https://potonbase.vercel.app>. This is a frontend deployment
+only; no POT factory has been deployed and no live financial journey has been validated.
+
 The app currently includes a product landing page, Base Sepolia wallet onboarding, a public pot
 page, an organizer dashboard, and a pot creation form. Creation, contribution, payout, and refund
 transaction flows are implemented with chain checks, receipt handling, and Builder Code gating.

@@ -33,6 +33,9 @@ Completed:
 - Provisioned a Base Sepolia Supabase project, applied all three migrations, configured its
   publishable and server-only secret keys in the ignored local web environment, and verified
   server-secret and public read access. The project currently has no indexed chain data.
+- Deployed the public Next.js frontend to <https://potonbase.vercel.app> with Vercel's Next.js
+  preset and Node.js 24. Configured only Base Sepolia RPC and Supabase environment variables;
+  transaction configuration remains absent and gated.
 - Verified the web build/lint and endpoint authentication behavior. Live indexing still requires
   a deployed factory, its deployment block, and Base Sepolia RPC configuration.
 - Added a wallet-free public pot route that verifies factory registration, reads the settlement
@@ -84,6 +87,8 @@ Still outstanding in this milestone:
 - Add and validate a dedicated design-token system if the interface grows beyond the current page.
 - Verify wallet connection/network switching and public-description publishing using an installed
   wallet.
+- Run a real Base Sepolia two-wallet flow after deploying and verifying the testnet factory and
+  configuring Builder Code.
 - Run the indexer against Supabase and a deployed Base Sepolia factory; validate reorg recovery.
 - Create and fund the user's two dedicated Base Sepolia test wallets, then run the wallet preflight.
 - Obtain and configure a Builder Code before pot creation/deployment flows can be tested.
@@ -100,7 +105,7 @@ Still outstanding in this milestone:
 | 4. Database and indexing | Supabase configured | Project provisioned and migrations applied; run against a deployed factory and validate live indexing/reorg recovery. |
 | 5. Core application | In progress | Create, contribution, payout, and refund transaction flows are wired but gated on a deployed verified factory and Builder Code. Public dashboard totals cover only listed indexed pots; public description publishing requires the deployed factory and indexed public pot. Complete private-pot access is not implemented. Circle Base Sepolia USDC is verified; dedicated test wallets and Builder Code are not configured. |
 | 6. Polish and demo | In progress | Verify CI; testnet flow, remaining responsive/error-state review, and repeatable two-wallet demo remain. |
-| 7. Deployment and submission | Not started | Testnet deployment, contract verification, clean-session checks, final documentation. |
+| 7. Deployment and submission | Frontend deployed; financial product not launched | Base Sepolia factory deployment, contract verification, two-wallet checks, monitoring, security review, and final submission remain. Mainnet launch is not ready or enabled. |
 
 ## Integration gates
 
@@ -114,3 +119,6 @@ Still outstanding in this milestone:
 - The public metadata signature flow is locally implemented and tested, but remains unverified
   against a deployed factory. Supabase is configured and migrations are applied, but no indexed pot
   exists yet.
+- The Vercel site is publicly accessible, but it is not a mainnet financial application. No mainnet
+  contracts, token, RPC, or Builder Code are configured. The current data schema is Base Sepolia
+  specific, and the contracts have not undergone an independent security audit.

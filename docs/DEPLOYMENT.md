@@ -13,6 +13,19 @@ npm run dev
 The landing page does not require environment variables or a database. The `/connect` route
 requires a compatible wallet provider in the browser to establish a wallet connection.
 
+## Public frontend
+
+The Next.js frontend is deployed at <https://potonbase.vercel.app> from the `apps/web` directory
+using Vercel's Next.js preset and Node.js 24. Production and preview environments contain the
+Base Sepolia RPC and Supabase URL, publishable key, and server-only secret. Vercel authentication
+protection is disabled so the site is publicly accessible; do not put private operational routes
+or sensitive data on this deployment.
+
+This is a public frontend deployment, not a launch of a mainnet financial product. No factory
+address, Builder Code, mainnet RPC, or mainnet token configuration is deployed. Create,
+contribution, payout, and refund transactions remain gated. Do not enable them for mainnet until
+the contract and application readiness gates below are completed.
+
 ## Validation
 
 From `apps\web`:
@@ -75,3 +88,16 @@ For organizer/contributor account setup and the read-only balance check, see
 
 Do not rush to mainnet. Mainnet is not appropriate until financial rules, token configuration,
 testing, and security review are satisfactory.
+
+## Additional mainnet readiness gates
+
+- Review and formally audit the Solidity contracts and publish the audit and remediation record.
+- Design and test a mainnet-specific deployment and token configuration; do not reuse Base Sepolia
+  contract addresses or assume test USDC is equivalent to production USDC.
+- Review every chain-specific assumption in the app and data schema. The current Supabase schema
+  constrains `chain_id` to `84532`, so mainnet indexing requires a reviewed schema migration and
+  explicit multi-environment separation.
+- Test deployment, monitoring, indexer recovery, backups, incident response, and wallet flows on
+  Base Sepolia before considering any real funds.
+- Keep transaction controls disabled until the exact mainnet contract, token, RPC, and Builder Code
+  have been independently verified and approved.
