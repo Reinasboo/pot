@@ -36,6 +36,9 @@ npm run fmt:check
 npm test
 ```
 
+Use [`TESTNET_WALLET_SETUP.md`](./TESTNET_WALLET_SETUP.md) to create dedicated test accounts and
+run the read-only chain/token/balance preflight before any future transaction testing.
+
 GitHub Actions runs the web and contract checks on pushes to `main`, pull requests, and manual
 workflow dispatches.
 
@@ -54,6 +57,9 @@ factory start block, and the server-side settings documented in `INDEXING.md`. T
 protected with `INDEXER_CRON_SECRET`; schedule it only from a trusted server-side scheduler.
 The wallet-free public pot route additionally needs `SUPABASE_ANON_KEY` to load indexed display
 metadata and activity.
+
+For organizer/contributor account setup and the read-only balance check, see
+[`TESTNET_WALLET_SETUP.md`](./TESTNET_WALLET_SETUP.md).
 
 ## Before a demo deployment
 

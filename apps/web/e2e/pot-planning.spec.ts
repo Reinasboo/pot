@@ -11,6 +11,19 @@ test("landing page routes visitors to pot planning", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Set the rules before you share." })).toBeVisible();
 });
 
+test("wallet onboarding explains safe Base Sepolia test setup", async ({ page }) => {
+  await page.goto("/connect");
+
+  await expect(page.getByRole("heading", { name: "Connect your wallet." })).toBeVisible();
+  await expect(page.getByText("Base Sepolia", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Preparing two-wallet tests?" })).toBeVisible();
+  await expect(page.getByText(/live pot transactions are not enabled yet/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Circle USDC testnet faucet" })).toHaveAttribute(
+    "href",
+    "https://faucet.circle.com/",
+  );
+});
+
 test("validates goal rules and previews a flexible pot", async ({ page }) => {
   await page.goto("/create");
   await page.getByRole("button", { name: "Preview pot rules" }).click();

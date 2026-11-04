@@ -43,6 +43,9 @@ Completed:
   target/flexible settlement validation.
 - Added Playwright coverage for landing-to-planning navigation, invalid/valid rule previews,
   flexible settlement, confirmed local-draft restore/clear, and mobile overflow.
+- Verified Circle's official Base Sepolia USDC address against the live chain (84532, contract
+  code present, USDC, 6 decimals); documented test-only organizer/contributor wallet setup and
+  added a read-only balance preflight script.
 - Added GitHub Actions checks for web lint, unit tests, production build, and Foundry formatting
   and tests, including browser tests on Chromium.
 - Added copy-link and native device-share actions to public pot pages.
@@ -55,6 +58,8 @@ Still outstanding in this milestone:
 - Add and validate a dedicated design-token system if the interface grows beyond the current page.
 - Verify wallet connection/network switching using an installed wallet.
 - Run the indexer against Supabase and a deployed Base Sepolia factory; validate reorg recovery.
+- Create and fund the user's two dedicated Base Sepolia test wallets, then run the wallet preflight.
+- Obtain and integrate a Builder Code before transaction/deployment flows.
 - Verify GitHub Actions when the account billing lock is resolved.
 
 ## Build phases
@@ -66,7 +71,7 @@ Still outstanding in this milestone:
 | 2. Wallet onboarding | In progress | Verify connection and network switching with real wallet providers; test rejection, disconnection, and unsupported-network recovery. |
 | 3. Smart contracts | In progress | Independent security review and verified token/deployment configuration remain outstanding. |
 | 4. Database and indexing | Implemented locally | Apply migrations and run against a configured Supabase project and deployed factory; live recovery/reconciliation remains to validate. |
-| 5. Core application | In progress | Public pot page, indexed dashboard, and local creation-rule draft flow are implemented; onchain creation, private-pot access, contributions, payout, and refunds remain. |
+| 5. Core application | In progress | Public pot page, indexed dashboard, and local creation-rule draft flow are implemented; onchain creation, private-pot access, contributions, payout, and refunds remain. Circle Base Sepolia USDC is verified; dedicated test wallets and Builder Code are not configured. |
 | 6. Polish and demo | In progress | Verify CI; testnet flow, remaining responsive/error-state review, and repeatable two-wallet demo remain. |
 | 7. Deployment and submission | Not started | Testnet deployment, contract verification, clean-session checks, final documentation. |
 

@@ -10,6 +10,9 @@ mock, not the official Base Sepolia USDC contract.
 
 The factory has one immutable ERC-20 settlement token. Each pot stores its organizer and rules.
 There is no admin role, upgrade path, arbitrary token selector, or privileged withdrawal.
+The intended Base Sepolia test asset is Circle-issued USDC at
+`0x036CbD53842c5426634e7929541eC2318f3dCF7e` (6 decimals), verified against the official Circle
+contract-address list and live Base Sepolia RPC. This is a testnet asset, not a mainnet token.
 
 ### Flexible pot
 
@@ -57,6 +60,7 @@ state rollback when token transfers fail.
 
 ## Deployment gate
 
-Before testnet deployment, verify the configured token address from an authoritative source and
-review all deployment constructor parameters. Before any mainnet use, require independent security
-review; passing this test suite is not an audit or a safety guarantee.
+Before testnet deployment, verify the token code and metadata on chain and review all deployment
+constructor parameters. Builder Code attribution must be configured before any deployment
+transaction. Before any mainnet use, require independent security review; passing this test suite
+is not an audit or a safety guarantee.

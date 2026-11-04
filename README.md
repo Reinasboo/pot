@@ -56,6 +56,9 @@ npm run fmt:check
 npm test
 ```
 
+For a read-only Base Sepolia check of the two test-wallet balances, copy `.env.example` to
+`.env.local`, set the two public wallet addresses, and run `npm run check:testnet`.
+
 Both sets of checks run in GitHub Actions for pushes to `main`, pull requests, and manual runs.
 
 ## Product and engineering notes
@@ -68,7 +71,8 @@ Both sets of checks run in GitHub Actions for pushes to `main`, pull requests, a
 - [Implementation status](docs/IMPLEMENTATION_STATUS.md)
 - [Contract rules and tests](docs/CONTRACTS.md)
 - [Indexer setup and operations](docs/INDEXING.md)
+- [Base Sepolia test-wallet setup](docs/TESTNET_WALLET_SETUP.md)
 
-The intended development network is Base Sepolia (chain ID `84532`). No contract or token address
-has been configured or deployed by this project yet. Do not treat the current site as a live
-financial product.
+The intended development network is Base Sepolia (chain ID `84532`). Circle's official test USDC
+address has been verified, but no POT factory has been deployed or configured. Do not treat the
+current site as a live financial product.

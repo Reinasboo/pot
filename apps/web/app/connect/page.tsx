@@ -32,6 +32,19 @@ export default function ConnectPage() {
           </p>
         </div>
         <WalletConnection />
+        <section className="connect-testnet-note" aria-labelledby="test-wallet-title">
+          <h2 id="test-wallet-title">Preparing two-wallet tests?</h2>
+          <p>
+            Use two dedicated Base Sepolia accounts in separate browser profiles. Fund each with
+            test ETH for gas and test USDC. POT does not ask for recovery phrases or private keys,
+            and live pot transactions are not enabled yet.
+          </p>
+          <p>
+            <a href="https://portal.cdp.coinbase.com/products/faucet">Base Sepolia ETH faucet</a>
+            {" · "}
+            <a href="https://faucet.circle.com/">Circle USDC testnet faucet</a>
+          </p>
+        </section>
         <p className="connect-disclaimer">
           Never share your recovery phrase. POT will never ask you for it.
         </p>
