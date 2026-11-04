@@ -65,7 +65,9 @@ redact the configured URL.
 The following are still required before deploying or sending a transaction:
 
 - Obtain a Builder Code in [Base developer settings](https://base.dev/) and wire ERC-8021
-  attribution into the Wagmi transaction client. Do not send un-attributed Base transactions.
+  attribution into the Wagmi transaction client. The app accepts this public code through
+  `NEXT_PUBLIC_BASE_BUILDER_CODE`; without it, transaction helpers must fail closed. Do not send
+  un-attributed Base transactions.
 - Review the deployment parameters and deploy the factory using a funded test-only deployer.
 - Configure and verify the deployed factory address and deployment block.
 - Implement the pot creation, USDC approval/contribution, payout, and refund flows; none is

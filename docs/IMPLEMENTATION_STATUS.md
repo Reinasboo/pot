@@ -48,6 +48,9 @@ Completed:
 - Verified Circle's official Base Sepolia USDC address against the live chain (84532, contract
   code present, USDC, 6 decimals); documented test-only organizer/contributor wallet setup and
   added a read-only balance preflight script.
+- Added ERC-8021 Builder Code suffix generation at Wagmi client level and a fail-closed helper for
+  future transaction actions. The public code is not configured yet and transaction flows remain
+  disabled.
 - Added GitHub Actions checks for web lint, unit tests, production build, and Foundry formatting
   and tests, including browser tests on Chromium.
 - Added copy-link and native device-share actions to public pot pages.
@@ -61,7 +64,7 @@ Still outstanding in this milestone:
 - Verify wallet connection/network switching using an installed wallet.
 - Run the indexer against Supabase and a deployed Base Sepolia factory; validate reorg recovery.
 - Create and fund the user's two dedicated Base Sepolia test wallets, then run the wallet preflight.
-- Obtain and integrate a Builder Code before transaction/deployment flows.
+- Obtain and configure a Builder Code before transaction/deployment flows can be tested.
 - Verify GitHub Actions when the account billing lock is resolved.
 
 ## Build phases

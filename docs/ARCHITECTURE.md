@@ -21,6 +21,9 @@ The current wallet route supports Coinbase Wallet and injected providers. It req
 access only; transaction signing and payment flows are not implemented. The Base Sepolia chain ID
 and explorer configuration come from viem's chain definition. The configured public RPC is
 appropriate only for testnet development, not production.
+The Wagmi client appends an ERC-8021 Builder Code suffix when the public
+`NEXT_PUBLIC_BASE_BUILDER_CODE` value is configured. Transaction code must call the
+fail-closed attribution guard and must not be added until a valid Builder Code is configured.
 
 The initial contract implementation is in `contracts/src`. A factory is deployed with one
 settlement token and creates isolated pot instances. Settlement rules and tests are documented in
