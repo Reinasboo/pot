@@ -21,7 +21,12 @@ From `apps\web`:
 npm test
 npm run lint
 npm run build
+npm run test:e2e
 ```
+
+The Playwright browser suite uses Chromium and starts the built Next.js production server. Install
+the browser once with `npx playwright install chromium`; CI installs it as part of the workflow.
+Run `npm run build` before starting the browser suite.
 
 Contract checks run from `contracts`:
 

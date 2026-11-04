@@ -41,8 +41,10 @@ Completed:
   with replacement confirmation; it submits no transaction.
 - Added Vitest coverage for pot amount parsing, exact decimal comparisons, Unicode limits, and
   target/flexible settlement validation.
+- Added Playwright coverage for landing-to-planning navigation, invalid/valid rule previews,
+  flexible settlement, confirmed local-draft restore/clear, and mobile overflow.
 - Added GitHub Actions checks for web lint, unit tests, production build, and Foundry formatting
-  and tests.
+  and tests, including browser tests on Chromium.
 - Added copy-link and native device-share actions to public pot pages.
 - Added responsive loading, unavailable, empty-activity, funding, deadline, and settlement-rule
   states; no sample financial activity or fake contribution action is shown.
@@ -53,7 +55,7 @@ Still outstanding in this milestone:
 - Add and validate a dedicated design-token system if the interface grows beyond the current page.
 - Verify wallet connection/network switching using an installed wallet.
 - Run the indexer against Supabase and a deployed Base Sepolia factory; validate reorg recovery.
-- Add browser-level Playwright coverage for user journeys and responsive states.
+- Verify GitHub Actions when the account billing lock is resolved.
 
 ## Build phases
 
@@ -65,7 +67,7 @@ Still outstanding in this milestone:
 | 3. Smart contracts | In progress | Independent security review and verified token/deployment configuration remain outstanding. |
 | 4. Database and indexing | Implemented locally | Apply migrations and run against a configured Supabase project and deployed factory; live recovery/reconciliation remains to validate. |
 | 5. Core application | In progress | Public pot page, indexed dashboard, and local creation-rule draft flow are implemented; onchain creation, private-pot access, contributions, payout, and refunds remain. |
-| 6. Polish and demo | In progress | Add Playwright end-to-end coverage; testnet flow, responsive/error-state review, and repeatable two-wallet demo remain. |
+| 6. Polish and demo | In progress | Verify CI; testnet flow, remaining responsive/error-state review, and repeatable two-wallet demo remain. |
 | 7. Deployment and submission | Not started | Testnet deployment, contract verification, clean-session checks, final documentation. |
 
 ## Integration gates

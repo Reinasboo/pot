@@ -43,10 +43,12 @@ Run from `apps\web`:
 npm test
 npm run lint
 npm run build
+npm run test:e2e
 ```
 
-The web unit tests cover pot setup validation. Contract formatting and Foundry tests run from
-`contracts`:
+The web tests cover pot setup validation and browser journeys. Build the production app before
+running Playwright; install Chromium once with `npx playwright install chromium`. Contract
+formatting and Foundry tests run from `contracts`:
 
 ```powershell
 npm ci
