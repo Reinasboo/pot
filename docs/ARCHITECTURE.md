@@ -53,8 +53,11 @@ Supabase only for display metadata and confirmed event history. The contribution
 configured factory, pot registration, Circle USDC, wallet balance, and live contribution rules
 before enabling writes. It requests an exact-amount USDC approval only when the current allowance
 is insufficient, then waits for transaction receipts; pending contributions are never counted.
-Both creation and contribution remain disabled until a factory deployment and Builder Code are
-configured.
+The settlement panel exposes payout only to the organizer when `isPayoutEligible()` is true and a
+refund only to a contributor with an unclaimed contribution when `isRefundEligible()` is true.
+Both actions re-read the factory, token, caller-specific state, and contract eligibility before
+writing, and wait for confirmation. Creation, contribution, payout, and refunds remain disabled
+until a factory deployment and Builder Code are configured.
 
 The organizer dashboard at `/dashboard` reads only public pot identity/configuration rows from
 Supabase, scoped to the connected wallet address and Base Sepolia. It does not show balances or

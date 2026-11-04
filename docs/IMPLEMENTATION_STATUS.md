@@ -58,6 +58,9 @@ Completed:
   live factory/pot/token/balance checks, contribution-rule validation, exact-amount allowance
   approval, confirmed transaction states, and a refreshed onchain summary. It remains gated until
   the factory, Builder Code, wallet, network, and pot checks pass.
+- Added a public-pot settlement panel with caller-scoped organizer payout and contributor refund
+  eligibility, pre-transaction chain rechecks, confirmation states, and explorer links. It remains
+  gated until the factory, Builder Code, wallet, and pot checks pass.
 - Added GitHub Actions checks for web lint, unit tests, production build, and Foundry formatting
   and tests, including browser tests on Chromium.
 - Added copy-link and native device-share actions to public pot pages.
@@ -83,7 +86,7 @@ Still outstanding in this milestone:
 | 2. Wallet onboarding | In progress | Verify connection and network switching with real wallet providers; test rejection, disconnection, and unsupported-network recovery. |
 | 3. Smart contracts | In progress | Independent security review and verified token/deployment configuration remain outstanding. |
 | 4. Database and indexing | Implemented locally | Apply migrations and run against a configured Supabase project and deployed factory; live recovery/reconciliation remains to validate. |
-| 5. Core application | In progress | Create and contribution transaction flows are wired but gated on a deployed verified factory and Builder Code. Private-pot access, payout, and refunds remain. Circle Base Sepolia USDC is verified; dedicated test wallets and Builder Code are not configured. |
+| 5. Core application | In progress | Create, contribution, payout, and refund transaction flows are wired but gated on a deployed verified factory and Builder Code. Private-pot access remains. Circle Base Sepolia USDC is verified; dedicated test wallets and Builder Code are not configured. |
 | 6. Polish and demo | In progress | Verify CI; testnet flow, remaining responsive/error-state review, and repeatable two-wallet demo remain. |
 | 7. Deployment and submission | Not started | Testnet deployment, contract verification, clean-session checks, final documentation. |
 

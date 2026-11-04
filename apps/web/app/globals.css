@@ -2187,6 +2187,132 @@ a {
   line-height: 1.65;
 }
 
+.pot-settlement {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised);
+}
+
+.pot-settlement-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pot-settlement-heading .pot-eyebrow {
+  margin: 0 0 7px;
+}
+
+.pot-settlement-heading h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+}
+
+.pot-settlement-token {
+  color: var(--text-tertiary);
+  font-size: 9px;
+}
+
+.pot-settlement-connect {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  padding-inline: 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--green-ink);
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pot-settlement-connect:focus-visible,
+.pot-settlement-button:focus-visible {
+  outline: 3px solid #91bd58;
+  outline-offset: 3px;
+}
+
+.pot-settlement-message {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.pot-settlement-action {
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pot-settlement-action p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.pot-settlement-action strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.pot-settlement-button {
+  min-height: 39px;
+  margin-top: 10px;
+  padding-inline: 13px;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: var(--ink);
+  color: white;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pot-settlement-button:hover:not(:disabled) {
+  background: #27342b;
+}
+
+.pot-settlement-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.pot-settlement-refund-button {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--green-ink);
+}
+
+.pot-settlement-refund-button:hover:not(:disabled) {
+  background: var(--green-muted);
+}
+
+.pot-settlement-error,
+.pot-settlement-confirmed {
+  margin: 10px 0 0;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.pot-settlement-error {
+  color: #a53d34;
+}
+
+.pot-settlement-confirmed {
+  color: var(--green-ink);
+  font-weight: 700;
+}
+
 .pot-refund-status {
   flex: 0 0 auto;
   margin: 2px 0 0 auto;

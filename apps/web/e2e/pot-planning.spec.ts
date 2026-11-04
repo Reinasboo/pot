@@ -128,8 +128,9 @@ test("keeps onchain creation disabled without a verified factory", async ({ page
   );
 });
 
-test("shows the shared pot contribution form without enabling an unconnected wallet", async ({
+test("shows the shared pot contribution and settlement forms without enabling an unconnected wallet", async ({
   page,
+  isMobile,
 }) => {
   const potAddress = "0x1111111111111111111111111111111111111111";
   await page.route(`**/api/pots/${potAddress}`, (route) =>
@@ -166,11 +167,25 @@ test("shows the shared pot contribution form without enabling an unconnected wal
 
   await expect(page.getByRole("heading", { name: "Shared trip" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Contribute USDC" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Connect wallet" })).toHaveAttribute(
+  await expect(page.getByRole("heading", { name: "Payouts and refunds" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Connect wallet", exact: true })).toHaveAttribute(
+    "href",
+    "/connect",
+  );
+  await expect(page.getByRole("link", { name: "Connect wallet to check eligibility" })).toHaveAttribute(
     "href",
     "/connect",
   );
   await expect(page.getByRole("button", { name: "Contribute", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Withdraw pot funds" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Claim my refund" })).toHaveCount(0);
+  if (isMobile) {
+    const dimensions = await page.evaluate(() => ({
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: document.documentElement.clientWidth,
+    }));
+    expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+  }
 });
 
 test("restores and clears a saved local draft only after confirmation", async ({ page }) => {

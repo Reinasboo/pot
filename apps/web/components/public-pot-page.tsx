@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatTokenAmount, getPublicPotState, type PublicPotDetails } from "@/lib/public-pot";
 import { PotContribution } from "@/components/pot-contribution";
+import { PotSettlement } from "@/components/pot-settlement";
 import { SharePotLink } from "@/components/share-pot-link";
 
 type Props = { address: string };
@@ -248,6 +249,11 @@ export function PublicPotPage({ address }: Props) {
         {pot.refundEligible && <span className="pot-refund-status">Refunds available onchain</span>}
         {pot.payoutEligible && <span className="pot-refund-status">Payout eligible onchain</span>}
       </section>
+
+      <PotSettlement
+        pot={pot}
+        onConfirmed={() => setRefreshKey((current) => current + 1)}
+      />
 
       <section className="pot-activity-section">
         <div className="pot-activity-heading">

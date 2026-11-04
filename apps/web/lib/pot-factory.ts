@@ -20,7 +20,15 @@ export const potContractAbi = parseAbi([
   "function minimumContribution() view returns (uint256)",
   "function totalContributed() view returns (uint256)",
   "function isContributionOpen() view returns (bool)",
+  "function isPayoutEligible() view returns (bool)",
+  "function isRefundEligible() view returns (bool)",
+  "function organizer() view returns (address)",
+  "function paidOut() view returns (bool)",
+  "function contributions(address contributor) view returns (uint256)",
+  "function refundsClaimed(address contributor) view returns (bool)",
   "function contribute(uint256 amount)",
+  "function payout()",
+  "function claimRefund()",
 ]);
 
 export const usdcAbi = parseAbi([

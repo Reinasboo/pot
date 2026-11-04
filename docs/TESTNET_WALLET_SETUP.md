@@ -75,8 +75,9 @@ The following are still required before deploying or sending a transaction:
   pages or indexed activity.
 - Pot creation and USDC contribution client flows are wired but cannot submit before the checks
   above. Contribution checks pot registration, Circle USDC, available balance, and contract rules;
-  it only requests an exact-amount approval when needed. Payout and refund UI flows are not
-  implemented yet.
+  it only requests an exact-amount approval when needed. Settlement actions are also wired: only
+  the organizer can call payout when eligible, and contributors can claim their own unclaimed
+  refunds only after the target deadline expires below goal.
 - Test from the organizer and contributor browser profiles and verify every transaction on
   Base Sepolia explorer.
 
