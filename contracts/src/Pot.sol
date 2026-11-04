@@ -14,19 +14,28 @@ contract Pot is ReentrancyGuard {
     error InvalidDeadline();
     error InvalidToken();
     error InvalidOrganizer();
+    error InvalidFundingMode();
+    error InvalidPayoutRecipient();
     error InvalidMinimumContribution();
     error ContributionsClosed();
     error InvalidContribution();
     error GoalExceeded();
     error NotOrganizer();
+    error NotPayoutRecipient();
     error PayoutNotEligible();
     error RefundNotEligible();
     error NoRefundAvailable();
     error RefundAlreadyClaimed();
     error UnsupportedTransferFee();
 
+    uint8 public constant MODE_TARGET_REFUND = 0;
+    uint8 public constant MODE_CROWDFUNDING_DEADLINE = 2;
+    uint8 public constant MODE_CROWDFUNDING_ANYTIME = 3;
+
     IERC20 public immutable token;
     address public immutable organizer;
+    address public immutable payoutRecipient;
+    uint8 public immutable fundingMode;
     bool public immutable targetBased;
     uint256 public immutable targetAmount;
     uint64 public immutable deadline;
@@ -36,20 +45,22 @@ contract Pot is ReentrancyGuard {
 
     uint256 public totalContributed;
     uint256 public totalRefunded;
+    uint256 public totalPaidOut;
     bool public paidOut;
     mapping(address contributor => uint256 amount) public contributions;
     mapping(address contributor => bool claimed) public refundsClaimed;
 
     event ContributionMade(address indexed contributor, uint256 amount, uint256 totalContributed);
-    event PotPaidOut(address indexed organizer, uint256 amount);
+    event PotPaidOut(address indexed recipient, uint256 amount);
     event ContributionRefunded(address indexed contributor, uint256 amount);
 
     constructor(
         IERC20 token_,
         address organizer_,
+        address payoutRecipient_,
         string memory name_,
         string memory metadataURI_,
-        bool targetBased_,
+        uint8 fundingMode_,
         uint256 targetAmount_,
         uint64 deadline_,
         uint256 minimumContribution_
@@ -58,20 +69,29 @@ contract Pot is ReentrancyGuard {
             revert InvalidToken();
         }
         if (organizer_ == address(0)) revert InvalidOrganizer();
+        if (fundingMode_ == 1 || fundingMode_ > MODE_CROWDFUNDING_ANYTIME) {
+            revert InvalidFundingMode();
+        }
         if (bytes(name_).length == 0 || bytes(name_).length > 80) revert InvalidName();
         if (bytes(metadataURI_).length > 512) revert InvalidMetadataURI();
         if (minimumContribution_ == 0) revert InvalidMinimumContribution();
 
-        if (targetBased_) {
-            if (targetAmount_ == 0) revert InvalidTarget();
-            if (deadline_ <= block.timestamp) revert InvalidDeadline();
-            if (minimumContribution_ > targetAmount_) revert InvalidMinimumContribution();
-        } else if (targetAmount_ != 0 || deadline_ != 0) {
-            revert InvalidTarget();
+        bool crowdfunding =
+            fundingMode_ == MODE_CROWDFUNDING_DEADLINE || fundingMode_ == MODE_CROWDFUNDING_ANYTIME;
+        if (crowdfunding && payoutRecipient_ == address(0)) revert InvalidPayoutRecipient();
+        if (!crowdfunding && payoutRecipient_ != address(0) && payoutRecipient_ != organizer_) {
+            revert InvalidPayoutRecipient();
         }
+
+        bool targetBased_ = true;
+        if (targetAmount_ == 0) revert InvalidTarget();
+        if (deadline_ <= block.timestamp) revert InvalidDeadline();
+        if (minimumContribution_ > targetAmount_) revert InvalidMinimumContribution();
 
         token = token_;
         organizer = organizer_;
+        payoutRecipient = crowdfunding ? payoutRecipient_ : organizer_;
+        fundingMode = fundingMode_;
         name = name_;
         metadataURI = metadataURI_;
         targetBased = targetBased_;
@@ -82,24 +102,27 @@ contract Pot is ReentrancyGuard {
 
     function isContributionOpen() public view returns (bool) {
         if (paidOut) return false;
-        if (!targetBased) return true;
-        return block.timestamp < deadline && totalContributed < targetAmount;
+        if (block.timestamp >= deadline) return false;
+        return fundingMode != MODE_TARGET_REFUND || totalContributed < targetAmount;
     }
 
     function isPayoutEligible() public view returns (bool) {
-        if (paidOut || totalContributed == 0) return false;
-        return !targetBased || totalContributed >= targetAmount;
+        if (paidOut || token.balanceOf(address(this)) == 0) return false;
+        if (fundingMode == MODE_CROWDFUNDING_ANYTIME) return true;
+        if (fundingMode == MODE_CROWDFUNDING_DEADLINE) {
+            return block.timestamp >= deadline;
+        }
+        return totalContributed >= targetAmount;
     }
 
     function isRefundEligible() public view returns (bool) {
-        return
-            targetBased && !paidOut && totalContributed < targetAmount
-                && block.timestamp >= deadline;
+        return fundingMode == MODE_TARGET_REFUND && !paidOut && totalContributed < targetAmount
+            && block.timestamp >= deadline;
     }
 
     function contribute(uint256 amount) external nonReentrant {
         if (!isContributionOpen()) revert ContributionsClosed();
-        if (targetBased) {
+        if (fundingMode == MODE_TARGET_REFUND) {
             uint256 remaining = targetAmount - totalContributed;
             if (amount > remaining) revert GoalExceeded();
             if (amount < minimumContribution && amount != remaining) revert InvalidContribution();
@@ -118,14 +141,23 @@ contract Pot is ReentrancyGuard {
     }
 
     function payout() external nonReentrant {
-        if (msg.sender != organizer) revert NotOrganizer();
+        bool crowdfunding =
+            fundingMode == MODE_CROWDFUNDING_DEADLINE || fundingMode == MODE_CROWDFUNDING_ANYTIME;
+        if (crowdfunding) {
+            if (msg.sender != payoutRecipient) revert NotPayoutRecipient();
+        } else if (msg.sender != organizer) {
+            revert NotOrganizer();
+        }
         if (!isPayoutEligible()) revert PayoutNotEligible();
 
-        paidOut = true;
-        uint256 amount = totalContributed;
-        token.safeTransfer(organizer, amount);
+        uint256 amount = token.balanceOf(address(this));
+        totalPaidOut += amount;
+        if (fundingMode != MODE_CROWDFUNDING_ANYTIME || !isContributionOpen()) {
+            paidOut = true;
+        }
+        token.safeTransfer(payoutRecipient, amount);
 
-        emit PotPaidOut(organizer, amount);
+        emit PotPaidOut(payoutRecipient, amount);
     }
 
     function claimRefund() external nonReentrant {

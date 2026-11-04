@@ -14,7 +14,9 @@ import { getBuilderDataSuffix, requireBuilderDataSuffix } from "@/lib/builder-at
 import { PotMetadataEditor } from "@/components/pot-metadata-editor";
 import { supportedChain } from "@/lib/wagmi";
 import {
+  getCrowdfundingCreateArguments,
   getPotFactoryCreateArguments,
+  isCrowdfundingMode,
   validatePotDraft,
   type PotDraft,
 } from "@/lib/pot-creation";
@@ -29,7 +31,11 @@ type Draft = PotDraft;
 
 type StoredDraft = {
   version: 1;
-  draft: Omit<Draft, "purpose"> & { purpose?: string };
+  draft: Omit<Draft, "purpose" | "payoutRecipient" | "isPublic"> & {
+    purpose?: string;
+    payoutRecipient?: string;
+    isPublic?: boolean;
+  };
 };
 
 const draftStorageKey = "pot.create-draft.v1";
@@ -42,6 +48,8 @@ const initialDraft: Draft = {
   target: "",
   deadline: "",
   minimum: "",
+  payoutRecipient: "",
+  isPublic: true,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -56,13 +64,19 @@ function isStoredDraft(value: unknown): value is StoredDraft {
     draft.name.length <= 120 &&
     (draft.purpose === undefined ||
       (typeof draft.purpose === "string" && Array.from(draft.purpose).length <= 2000)) &&
-    (draft.mode === "target" || draft.mode === "flexible") &&
+    (draft.mode === "target" ||
+      draft.mode === "flexible" ||
+      draft.mode === "crowdfunding-deadline" ||
+      draft.mode === "crowdfunding-anytime") &&
     typeof draft.target === "string" &&
     draft.target.length <= 120 &&
     typeof draft.deadline === "string" &&
     draft.deadline.length <= 32 &&
     typeof draft.minimum === "string" &&
-    draft.minimum.length <= 120
+    draft.minimum.length <= 120 &&
+    (draft.payoutRecipient === undefined ||
+      (typeof draft.payoutRecipient === "string" && draft.payoutRecipient.length <= 64)) &&
+    (draft.isPublic === undefined || typeof draft.isPublic === "boolean")
   );
 }
 
@@ -138,6 +152,16 @@ export function PotCreationDraft() {
   const wrongNetwork = isConnected && chainId !== supportedChain.id;
   const factoryUsesUsdc =
     factoryToken?.toLowerCase() === circleBaseSepoliaUsdc.toLowerCase();
+  const {
+    data: crowdfundingSupported,
+    isError: isCrowdfundingCapabilityError,
+  } = useReadContract({
+    address: factoryAddress,
+    abi: potFactoryAbi,
+    functionName: "crowdfundingEnabled",
+    chainId: supportedChain.id,
+    query: { enabled: Boolean(factoryAddress) },
+  });
   const creationReady = Boolean(
     factoryAddress &&
       factoryUsesUsdc &&
@@ -146,6 +170,8 @@ export function PotCreationDraft() {
       walletAddress &&
       !wrongNetwork,
   );
+  const selectedModeReady =
+    creationReady && (!isCrowdfundingMode(draft.mode) || crowdfundingSupported === true);
   const hasSavedDraft = useSyncExternalStore(
     subscribeToDraftStorage,
     getDraftStorageSnapshot,
@@ -197,7 +223,12 @@ export function PotCreationDraft() {
         return;
       }
 
-      setDraft({ ...initialDraft, ...parsed.draft, purpose: parsed.draft.purpose ?? "" });
+      setDraft({
+        ...initialDraft,
+        ...parsed.draft,
+        purpose: parsed.draft.purpose ?? "",
+        isPublic: parsed.draft.isPublic ?? true,
+      });
       setErrors([]);
       setShowPreview(false);
       setPendingAction(null);
@@ -242,13 +273,21 @@ export function PotCreationDraft() {
       requireBuilderDataSuffix();
       setTransactionError("");
       setTransactionHash(undefined);
-      const hash = await writeContractAsync({
-        address: factoryAddress,
-        abi: potFactoryAbi,
-        functionName: "createPot",
-        args: getPotFactoryCreateArguments(draft),
-        chainId: supportedChain.id,
-      });
+      const hash = isCrowdfundingMode(draft.mode)
+        ? await writeContractAsync({
+            address: factoryAddress,
+            abi: potFactoryAbi,
+            functionName: "createCrowdfundingPot",
+            args: getCrowdfundingCreateArguments(draft),
+            chainId: supportedChain.id,
+          })
+        : await writeContractAsync({
+            address: factoryAddress,
+            abi: potFactoryAbi,
+            functionName: "createPot",
+            args: getPotFactoryCreateArguments(draft),
+            chainId: supportedChain.id,
+          });
       setTransactionHash(hash);
     } catch (error) {
       setTransactionError(
@@ -261,11 +300,12 @@ export function PotCreationDraft() {
     <div className="pot-create-layout">
       <section className="pot-create-form-section" aria-labelledby="create-form-title">
         <div className="pot-create-intro">
-          <p className="pot-eyebrow">POT SETUP</p>
-          <h1 id="create-form-title">Set the rules before you share.</h1>
+          <p className="pot-eyebrow">PLAN PREVIEW</p>
+          <h1 id="create-form-title">Plan a group fund.</h1>
           <p>
-            Choose how this pot settles and review the terms. Onchain creation is enabled only
-            after the deployed factory and Builder Code have been verified.
+            Fill in the details to preview the plan. Right now, this page does not create a public
+            pot or collect money. You can save the draft in this browser and share the rules with
+            your group another way.
           </p>
         </div>
 
@@ -280,7 +320,7 @@ export function PotCreationDraft() {
               placeholder="What are you planning together?"
               value={draft.name}
             />
-            <span className="pot-form-hint">Up to 80 UTF-8 bytes.</span>
+            <span className="pot-form-hint">Keep the name under 80 characters.</span>
           </div>
 
           <div className="pot-form-field">
@@ -300,7 +340,7 @@ export function PotCreationDraft() {
           </div>
 
           <fieldset className="pot-mode-fieldset">
-            <legend>Settlement rules</legend>
+            <legend>What should happen to the money?</legend>
             <label className={`pot-mode-option${draft.mode === "target" ? " is-selected" : ""}`}>
               <input
                 checked={draft.mode === "target"}
@@ -310,29 +350,51 @@ export function PotCreationDraft() {
                 value="target"
               />
               <span>
-                <strong>Goal-based</strong>
-                <span>Set a target and deadline. Contributors can claim refunds if the deadline passes below the goal.</span>
+                <strong>Refund contributors if we miss the goal</strong>
+                <span>Set an amount and deadline. If time runs out before the goal is reached, each contributor can claim back their own contribution. Refunds are not automatic.</span>
               </span>
             </label>
-            <label className={`pot-mode-option${draft.mode === "flexible" ? " is-selected" : ""}`}>
+            <label className={`pot-mode-option${draft.mode === "crowdfunding-deadline" ? " is-selected" : ""}`}>
               <input
-                checked={draft.mode === "flexible"}
+                checked={draft.mode === "crowdfunding-deadline"}
                 name="settlement-mode"
-                onChange={() => updateDraft({ mode: "flexible" })}
+                onChange={() => updateDraft({ mode: "crowdfunding-deadline" })}
                 type="radio"
-                value="flexible"
+                value="crowdfunding-deadline"
               />
               <span>
-                <strong>Flexible</strong>
-                <span>No target or deadline. The organizer may withdraw the collected funds; there is no automatic refund rule.</span>
+                <strong>Crowdfund until the deadline</strong>
+                <span>The goal is a target, not a cap. Keep accepting contributions until the deadline, then the approved wallet can withdraw all funds—whether or not the goal was reached. No refunds.</span>
+              </span>
+            </label>
+            <label className={`pot-mode-option${draft.mode === "crowdfunding-anytime" ? " is-selected" : ""}`}>
+              <input
+                checked={draft.mode === "crowdfunding-anytime"}
+                name="settlement-mode"
+                onChange={() => updateDraft({ mode: "crowdfunding-anytime" })}
+                type="radio"
+                value="crowdfunding-anytime"
+              />
+              <span>
+                <strong>Let the approved wallet withdraw as funds come in</strong>
+                <span>The goal is a target, not a cap. The approved wallet can withdraw the available balance at any time, while contributions stay open until the deadline. No refunds.</span>
               </span>
             </label>
           </fieldset>
 
-          {draft.mode === "target" && (
+          {draft.mode === "flexible" && (
+            <p className="pot-form-errors" role="alert">
+              This saved plan uses an organizer-decides rule that is no longer available for new
+              pots. Choose a goal-based or crowdfunding rule instead.
+            </p>
+          )}
+
+          {draft.mode !== "flexible" && (
             <div className="pot-form-two-column">
               <div className="pot-form-field">
-                <label htmlFor="pot-goal">Funding goal</label>
+                <label htmlFor="pot-goal">
+                  {isCrowdfundingMode(draft.mode) ? "Fundraising goal" : "Funding goal"}
+                </label>
                 <input
                   autoComplete="off"
                   id="pot-goal"
@@ -354,8 +416,26 @@ export function PotCreationDraft() {
             </div>
           )}
 
+          {isCrowdfundingMode(draft.mode) && (
+            <div className="pot-form-field">
+              <label htmlFor="pot-payout-recipient">Approved payout wallet</label>
+              <input
+                autoComplete="off"
+                id="pot-payout-recipient"
+                inputMode="text"
+                onChange={(event) => updateDraft({ payoutRecipient: event.target.value })}
+                placeholder="0x..."
+                value={draft.payoutRecipient}
+              />
+              <span className="pot-form-hint">
+                Contributors can see this address before they contribute. Only this wallet can
+                withdraw crowdfunding funds.
+              </span>
+            </div>
+          )}
+
           <div className="pot-form-field">
-            <label htmlFor="pot-minimum">Minimum contribution</label>
+            <label htmlFor="pot-minimum">Smallest amount someone can contribute</label>
             <input
               autoComplete="off"
               id="pot-minimum"
@@ -365,9 +445,35 @@ export function PotCreationDraft() {
               value={draft.minimum}
             />
             <span className="pot-form-hint">
-              Circle USDC on Base Sepolia · 6 decimal places.
+              Enter an amount in USDC. Contributions use USDC on Base Sepolia testnet.
             </span>
           </div>
+
+          <fieldset className="pot-visibility-options">
+            <legend>Who should be able to open this pot?</legend>
+            <label>
+              <input
+                checked={draft.isPublic ?? true}
+                name="pot-visibility"
+                onChange={() => updateDraft({ isPublic: true })}
+                type="radio"
+              />
+              <span><strong>Anyone</strong> — the pot can be found and opened by everyone.</span>
+            </label>
+            <label>
+              <input
+                checked={draft.isPublic === false}
+                name="pot-visibility"
+                onChange={() => updateDraft({ isPublic: false })}
+                type="radio"
+              />
+              <span><strong>Only people with a private link</strong> — keep it out of public listings.</span>
+            </label>
+            <p className="pot-form-hint">
+              A private link works like a key. Anyone who has it can open and share the pot in POT.
+              The pot address and transactions are still public on Base.
+            </p>
+          </fieldset>
 
           {errors.length > 0 && (
             <div className="pot-form-errors" role="alert">
@@ -379,7 +485,7 @@ export function PotCreationDraft() {
           )}
 
           <button className="pot-create-preview-button" type="submit">
-            Preview pot rules
+            Preview this plan
           </button>
           <div className="pot-draft-actions" aria-label="Local draft actions">
             <button type="button" onClick={() => saveDraft()}>Save draft on this device</button>
@@ -417,31 +523,35 @@ export function PotCreationDraft() {
         <p className="pot-create-storage-message" role="status" aria-live="polite">
           {storageMessage ||
             (hasSavedDraft === true
-              ? "A saved draft is available in this browser. Restoring it will fill this form."
+              ? "A saved draft is available in this browser. Restore it to fill in this form."
               : hasSavedDraft === false
-                ? "No saved draft found in this browser. Drafts are not uploaded or deployed."
+                ? "No saved draft on this device. Drafts stay in this browser and are not published."
                 : hasSavedDraft === "unavailable"
                   ? "Browser storage is unavailable. Drafts cannot be saved on this device."
                   : "Checking this browser for a saved draft…")}
         </p>
         <p className="pot-create-unavailable">
           {rawFactoryAddress && !factoryAddress
-            ? "Pot creation is unavailable because NEXT_PUBLIC_POT_FACTORY_ADDRESS is invalid."
+            ? "Pot creation is unavailable because its factory address is invalid."
             : !factoryAddress
-              ? "Onchain creation is disabled until a deployed Base Sepolia factory is configured."
+              ? "You can preview and save this plan, but you cannot create a public pot yet. The POT contract has not been deployed."
               : isFactoryLoading
-                ? "Verifying the configured factory and settlement token…"
+                ? "Checking whether pot creation is available…"
                 : isFactoryReadError
-                  ? "The configured address could not be verified as a POT factory on Base Sepolia."
+                  ? "We couldn’t verify the pot contract on Base Sepolia. Check back later."
                   : factoryToken && !factoryUsesUsdc
-                    ? "Pot creation is disabled: this factory does not use the verified Circle Base Sepolia USDC contract."
+                    ? "Pot creation is unavailable because this contract does not use Base Sepolia test USDC."
                     : !builderDataSuffix
-                      ? "Pot creation is disabled until a Base Builder Code is configured."
+                      ? "Pot creation is not available until the required transaction attribution is set up."
+                      : isCrowdfundingMode(draft.mode) && isCrowdfundingCapabilityError
+                        ? "This factory does not support crowdfunding. A newer verified pot factory is required."
+                      : isCrowdfundingMode(draft.mode) && crowdfundingSupported !== true
+                        ? "Crowdfunding cannot be created until a compatible pot factory is deployed."
                       : !isConnected
-                        ? "Connect a wallet to create this pot on Base Sepolia."
+                        ? "Connect a wallet to create this pot."
                         : wrongNetwork
-                          ? "Switch your connected wallet to Base Sepolia before creating a pot."
-                          : "A transaction is sent only after you confirm it in your wallet. Purpose text is not included onchain and is published only after a separate wallet signature."}
+                          ? "Switch your wallet to Base Sepolia before creating a pot."
+                          : "Your wallet will ask you to confirm before a pot is created. The description is published separately only if you choose to sign for it."}
         </p>
         {showPreview && (
           <div className="pot-create-submit">
@@ -457,15 +567,15 @@ export function PotCreationDraft() {
             )}
             <button
               className="pot-create-preview-button"
-              disabled={!creationReady || isWritePending || isReceiptLoading}
+              disabled={!selectedModeReady || isWritePending || isReceiptLoading}
               onClick={() => void createPot()}
               type="button"
             >
               {isWritePending
                 ? "Confirm in your wallet…"
                 : isReceiptLoading
-                  ? "Waiting for Base Sepolia confirmation…"
-                  : "Create pot on Base Sepolia"}
+                  ? "Waiting for Base Sepolia to confirm…"
+                    : "Create pot"}
             </button>
           </div>
         )}
@@ -493,35 +603,42 @@ export function PotCreationDraft() {
         {receipt?.status === "success" && createdPotAddress && walletAddress && (
           <div className="pot-create-published-metadata">
             <p>
-              Your pot name and rules are onchain. Its description stays private until you choose
-              to publish it below.
+              Your pot’s rules are onchain. Choose who can open the POT page below and sign to save.
             </p>
             <PotMetadataEditor
               address={createdPotAddress}
               organizer={walletAddress}
-              isPublic
+              initialIsPublic={draft.isPublic ?? true}
+              isPersisted={false}
               initialDescription={draft.purpose.trim()}
             />
-            <Link href={`/pot/${createdPotAddress}`}>Open the public pot page</Link>
           </div>
         )}
       </section>
 
       <aside className="pot-create-preview" aria-live="polite">
-        <p className="pot-eyebrow">{showPreview ? "YOUR RULES PREVIEW" : "RULES AT A GLANCE"}</p>
+        <p className="pot-eyebrow">{showPreview ? "YOUR PLAN PREVIEW" : "WHAT YOU’RE PLANNING"}</p>
         {showPreview ? (
           <>
             <h2>{draft.name.trim()}</h2>
             {draft.purpose.trim() && <p className="pot-create-preview-purpose">{draft.purpose.trim()}</p>}
             <dl className="pot-create-preview-details">
               <div>
-                <dt>Settlement</dt>
-                <dd>{draft.mode === "target" ? "Goal-based" : "Flexible"}</dd>
+                <dt>Money rules</dt>
+                <dd>
+                  {draft.mode === "target"
+                    ? "Goal + deadline; refund if missed"
+                    : draft.mode === "flexible"
+                      ? "Organizer decides (not available for new pots)"
+                      : draft.mode === "crowdfunding-deadline"
+                        ? "Crowdfunding; payout after deadline"
+                        : "Crowdfunding; approved wallet may withdraw anytime"}
+                </dd>
               </div>
-              {draft.mode === "target" && (
+              {draft.mode !== "flexible" && (
                 <>
                   <div>
-                    <dt>Goal</dt>
+                    <dt>{isCrowdfundingMode(draft.mode) ? "Fundraising goal" : "Goal"}</dt>
                     <dd>{draft.target} USDC</dd>
                   </div>
                   <div>
@@ -530,22 +647,41 @@ export function PotCreationDraft() {
                   </div>
                 </>
               )}
+              {isCrowdfundingMode(draft.mode) && (
+                <div>
+                  <dt>Approved payout wallet</dt>
+                  <dd>{draft.payoutRecipient}</dd>
+                </div>
+              )}
               <div>
-                <dt>Minimum contribution</dt>
+                <dt>Smallest contribution</dt>
                 <dd>{draft.minimum} USDC</dd>
               </div>
+              <div>
+                <dt>Who can open it?</dt>
+                <dd>{draft.isPublic === false ? "Only people with the private link" : "Anyone"}</dd>
+              </div>
             </dl>
+            <p className="pot-create-preview-purpose">
+              {draft.mode === "target"
+                ? "The organizer can withdraw after the goal is reached. If the deadline passes below the goal, contributors can claim back their own contributions."
+                : draft.mode === "flexible"
+                  ? "There is no goal, deadline, or refund rule. After the first contribution, the organizer can withdraw the money."
+                  : draft.mode === "crowdfunding-deadline"
+                    ? "The goal is a target, not a cap. Contributions stay open until the deadline, when the named wallet can withdraw all funds. Contributors cannot claim refunds under this rule."
+                    : "The goal is a target, not a cap. The named wallet can withdraw the current balance at any time, and contributions stay open until the deadline. Contributors cannot claim refunds under this rule."}
+            </p>
             <p className="pot-create-preview-note">
-              The pot name and settlement rules are sent to the contract. Purpose text is kept
-              locally until you separately sign to publish it on the public pot page.
+              This is only a preview. You cannot publish or fund this pot yet. Your draft is saved
+              only in this browser unless you choose otherwise.
             </p>
           </>
         ) : (
           <div className="pot-create-preview-empty">
-            <h2>A clear plan starts with clear rules.</h2>
+            <h2>Your group-fund plan</h2>
             <p>
-              Add a name and minimum contribution, choose a settlement mode, then preview what
-              contributors would see.
+              Add a name, choose what happens to the money, and set the goal and deadline. For
+              crowdfunding, name the wallet that will receive withdrawals.
             </p>
           </div>
         )}

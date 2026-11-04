@@ -376,6 +376,7 @@ async function indexBatch(
       minimum_contribution: args.minimumContribution.toString(),
       name: args.name,
       metadata_uri: args.metadataURI,
+      is_public: false,
       created_block: log.blockNumber.toString(),
       created_transaction_hash: log.transactionHash.toLowerCase(),
       created_log_index: log.logIndex,

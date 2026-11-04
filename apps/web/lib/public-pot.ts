@@ -17,6 +17,8 @@ const potFactoryAbi = parseAbi([
 const potAbi = parseAbi([
   "function token() view returns (address)",
   "function organizer() view returns (address)",
+  "function payoutRecipient() view returns (address)",
+  "function fundingMode() view returns (uint8)",
   "function targetBased() view returns (bool)",
   "function targetAmount() view returns (uint256)",
   "function deadline() view returns (uint64)",
@@ -25,6 +27,7 @@ const potAbi = parseAbi([
   "function metadataURI() view returns (string)",
   "function totalContributed() view returns (uint256)",
   "function totalRefunded() view returns (uint256)",
+  "function totalPaidOut() view returns (uint256)",
   "function paidOut() view returns (bool)",
   "function isContributionOpen() view returns (bool)",
   "function isPayoutEligible() view returns (bool)",
@@ -88,9 +91,13 @@ type ContributionSearchRow = {
 export type PublicOrganizerPot = {
   address: `0x${string}`;
   name: string;
+  fundingMode: number;
   targetBased: boolean;
   createdBlock: string;
   escrowBalance: string;
+  totalContributed: string;
+  contributionOpen: boolean;
+  paidOut: boolean;
 };
 
 export type PublicParticipatedPot = PublicOrganizerPot & {
@@ -98,10 +105,27 @@ export type PublicParticipatedPot = PublicOrganizerPot & {
   contributedAmount: string;
 };
 
+export type PublicDiscoveryPot = {
+  address: `0x${string}`;
+  organizer: `0x${string}`;
+  name: string;
+  description: string;
+  coverImageUrl: string | null;
+  targetAmount: string;
+  deadline: string;
+  createdBlock: string;
+  fundingMode: number;
+  escrowBalance: string;
+  totalContributed: string;
+  contributionOpen: boolean;
+};
+
 export type PublicPotDetails = {
   address: `0x${string}`;
   chainId: number;
   organizer: `0x${string}`;
+  payoutRecipient: `0x${string}`;
+  fundingMode: number;
   token: `0x${string}`;
   name: string;
   metadataURI: string;
@@ -114,6 +138,8 @@ export type PublicPotDetails = {
   minimumContribution: string;
   totalContributed: string;
   totalRefunded: string;
+  totalPaidOut: string;
+  currentBalance: string;
   tokenDecimals: number;
   tokenSymbol: string;
   paidOut: boolean;
@@ -137,6 +163,10 @@ type PotMetadataRow = {
   is_public: boolean;
 };
 
+type PrivatePotAccessRow = {
+  access_key_hash: string;
+};
+
 type PotEventRow = {
   transaction_hash: `0x${string}`;
   log_index: number;
@@ -149,6 +179,17 @@ type OrganizerPotRow = {
   address: `0x${string}`;
   name: string;
   target_based: boolean;
+  created_block: string;
+};
+
+type PublicDiscoveryPotRow = {
+  address: `0x${string}`;
+  organizer: `0x${string}`;
+  name: string;
+  description: string;
+  cover_image_url: string | null;
+  target_amount: string;
+  deadline: string;
   created_block: string;
 };
 
@@ -165,6 +206,18 @@ function isMetadataRows(value: unknown): value is PotMetadataRow[] {
         typeof row.description === "string" &&
         (typeof row.cover_image_url === "string" || row.cover_image_url === null) &&
         typeof row.is_public === "boolean",
+    )
+  );
+}
+
+function isPrivatePotAccessRows(value: unknown): value is PrivatePotAccessRow[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (row) =>
+        isRecord(row) &&
+        typeof row.access_key_hash === "string" &&
+        /^[0-9a-f]{64}$/.test(row.access_key_hash),
     )
   );
 }
@@ -199,6 +252,29 @@ function isOrganizerPotRows(value: unknown): value is OrganizerPotRow[] {
         /^0x[\da-fA-F]{40}$/.test(row.address) &&
         typeof row.name === "string" &&
         typeof row.target_based === "boolean" &&
+        typeof row.created_block === "string" &&
+        /^\d+$/.test(row.created_block),
+    )
+  );
+}
+
+function isPublicDiscoveryPotRows(value: unknown): value is PublicDiscoveryPotRow[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (row) =>
+        isRecord(row) &&
+        typeof row.address === "string" &&
+        /^0x[\da-fA-F]{40}$/.test(row.address) &&
+        typeof row.organizer === "string" &&
+        /^0x[\da-fA-F]{40}$/.test(row.organizer) &&
+        typeof row.name === "string" &&
+        typeof row.description === "string" &&
+        (typeof row.cover_image_url === "string" || row.cover_image_url === null) &&
+        typeof row.target_amount === "string" &&
+        /^\d+$/.test(row.target_amount) &&
+        typeof row.deadline === "string" &&
+        /^\d+$/.test(row.deadline) &&
         typeof row.created_block === "string" &&
         /^\d+$/.test(row.created_block),
     )
@@ -264,8 +340,30 @@ function getSupabaseEnvironment(): Pick<Environment, "supabaseUrl" | "supabaseAn
 async function getVerifiedPotAmounts(
   addresses: readonly `0x${string}`[],
   contributorAddress?: `0x${string}`,
-): Promise<Map<string, { escrowBalance: string; contributedAmount?: string }>> {
-  const amounts = new Map<string, { escrowBalance: string; contributedAmount?: string }>();
+): Promise<
+  Map<
+    string,
+    {
+      fundingMode: number;
+      escrowBalance: string;
+      totalContributed: string;
+      contributionOpen: boolean;
+      paidOut: boolean;
+      contributedAmount?: string;
+    }
+  >
+> {
+  const amounts = new Map<
+    string,
+    {
+      fundingMode: number;
+      escrowBalance: string;
+      totalContributed: string;
+      contributionOpen: boolean;
+      paidOut: boolean;
+      contributedAmount?: string;
+    }
+  >();
   if (addresses.length === 0) return amounts;
 
   const environment = getEnvironment();
@@ -340,6 +438,11 @@ async function getVerifiedPotAmounts(
     },
     {
       address,
+      abi: potAbi,
+      functionName: "fundingMode" as const,
+    },
+    {
+      address,
       abi: potBalanceAbi,
       functionName: "token" as const,
     },
@@ -348,6 +451,21 @@ async function getVerifiedPotAmounts(
       abi: tokenAbi,
       functionName: "balanceOf" as const,
       args: [address] as const,
+    },
+    {
+      address,
+      abi: potAbi,
+      functionName: "totalContributed" as const,
+    },
+    {
+      address,
+      abi: potAbi,
+      functionName: "isContributionOpen" as const,
+    },
+    {
+      address,
+      abi: potAbi,
+      functionName: "paidOut" as const,
     },
     ...(contributorAddress
       ? [{
@@ -374,18 +492,29 @@ async function getVerifiedPotAmounts(
     throw new PublicPotError("Could not load verified pot amounts from Base Sepolia.", 502);
   }
 
-  const stride = contributorAddress ? 4 : 3;
+  const stride = contributorAddress ? 8 : 7;
   for (let index = 0; index < addresses.length; index += 1) {
     const offset = index * stride;
     const isRegistered = results[offset];
-    const potToken = results[offset + 1];
-    const escrowBalance = results[offset + 2];
-    const contributedAmount = contributorAddress ? results[offset + 3] : undefined;
+    const fundingMode = results[offset + 1];
+    const potToken = results[offset + 2];
+    const escrowBalance = results[offset + 3];
+    const totalContributed = results[offset + 4];
+    const contributionOpen = results[offset + 5];
+    const paidOut = results[offset + 6];
+    const contributedAmount = contributorAddress ? results[offset + 7] : undefined;
     if (
       isRegistered !== true ||
       typeof potToken !== "string" ||
       potToken.toLowerCase() !== circleBaseSepoliaUsdc.toLowerCase() ||
+      typeof fundingMode !== "number" ||
+      !Number.isInteger(fundingMode) ||
+      fundingMode < 0 ||
+      fundingMode > 3 ||
       typeof escrowBalance !== "bigint" ||
+      typeof totalContributed !== "bigint" ||
+      typeof contributionOpen !== "boolean" ||
+      typeof paidOut !== "boolean" ||
       (contributorAddress && typeof contributedAmount !== "bigint")
     ) {
       throw new PublicPotError(
@@ -395,7 +524,11 @@ async function getVerifiedPotAmounts(
     }
 
     amounts.set(addresses[index].toLowerCase(), {
+      fundingMode,
       escrowBalance: escrowBalance.toString(),
+      totalContributed: totalContributed.toString(),
+      contributionOpen,
+      paidOut,
       ...(typeof contributedAmount === "bigint"
         ? { contributedAmount: contributedAmount.toString() }
         : {}),
@@ -424,28 +557,79 @@ async function fetchSupabase<T>(
     throw new PublicPotError("Could not load this pot’s public activity.", 502);
   }
 
-  if (!response.ok) {
-    console.error("Public pot metadata query failed", response.status, await response.text());
-    throw new PublicPotError("Could not load this pot’s public activity.", 502);
+  return readSupabaseResponse(response, isExpected);
+}
+
+async function fetchPrivatePotData<T>(
+    environment: Pick<Environment, "supabaseUrl">,
+    path: string,
+    isExpected: (value: unknown) => value is T,
+  ): Promise<T> {
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    if (!serviceRoleKey) {
+      throw new PublicPotError("Private pot access is not configured.", 503);
+    }
+    let response: Response;
+    try {
+      const headers = new Headers({ apikey: serviceRoleKey });
+      if (!serviceRoleKey.startsWith("sb_secret_")) {
+        headers.set("authorization", ["Bearer", serviceRoleKey].join(" "));
+      }
+      response = await fetch(`${environment.supabaseUrl}/rest/v1/${path}`, {
+        headers,
+        cache: "no-store",
+      });
+    } catch (error) {
+      console.error("Could not verify private pot access", error instanceof Error ? error.name : "Unknown error");
+      throw new PublicPotError("Could not verify access to this pot.", 502);
+    }
+  return readSupabaseResponse(response, isExpected);
+}
+
+async function readSupabaseResponse<T>(
+    response: Response,
+    isExpected: (value: unknown) => value is T,
+): Promise<T> {
+    if (!response.ok) {
+      console.error("Private pot access query failed", response.status);
+      throw new PublicPotError("Could not verify access to this pot.", 502);
+    }
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch (error) {
+      console.error("Private pot access query returned invalid JSON", error instanceof Error ? error.name : "Unknown error");
+      throw new PublicPotError("Could not verify access to this pot.", 502);
+    }
+    if (!isExpected(data)) {
+      console.error("Private pot access query returned an invalid response shape");
+      throw new PublicPotError("Could not verify access to this pot.", 502);
+    }
+    return data;
   }
 
-  let data: unknown;
-  try {
-    data = await response.json();
-  } catch (error) {
-    console.error("Public pot metadata query returned invalid JSON", error);
-    throw new PublicPotError("Could not load this pot’s public activity.", 502);
+  async function hashPrivateAccessKey(accessKey: string): Promise<string> {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(accessKey));
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   }
-  if (!isExpected(data)) {
-    console.error("Public pot metadata query returned an invalid response shape");
-    throw new PublicPotError("Could not load this pot’s public activity.", 502);
+
+  function hashesMatch(left: string, right: string): boolean {
+    if (left.length !== right.length) return false;
+    let difference = 0;
+    for (let index = 0; index < left.length; index += 1) {
+      difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+    }
+    return difference === 0;
   }
-  return data;
-}
 
 function getState(pot: PublicPotDetails) {
   const total = BigInt(pot.totalContributed);
   if (pot.paidOut) return "Paid out";
+  if (pot.fundingMode === 2 || pot.fundingMode === 3) {
+    if (pot.payoutEligible) return "Ready for payout";
+    if (pot.contributionOpen) return "Crowdfunding in progress";
+    return "Crowdfunding closed";
+  }
   if (pot.refundEligible) return "Refunds available";
   if (pot.targetBased && total >= BigInt(pot.targetAmount)) return "Goal reached";
   if (pot.targetBased && !pot.contributionOpen) return "Funding closed";
@@ -454,7 +638,10 @@ function getState(pot: PublicPotDetails) {
   return "Open pot";
 }
 
-export async function getPublicPot(addressInput: string): Promise<PublicPotDetails> {
+export async function getPublicPot(
+  addressInput: string,
+  privateAccessKey?: string | null,
+): Promise<PublicPotDetails> {
   if (!isAddress(addressInput)) {
     throw new PublicPotError("This pot link does not contain a valid address.", 400);
   }
@@ -498,6 +685,8 @@ export async function getPublicPot(addressInput: string): Promise<PublicPotDetai
   const [
     token,
     organizer,
+    payoutRecipient,
+    fundingMode,
     targetBased,
     targetAmount,
     deadline,
@@ -506,6 +695,7 @@ export async function getPublicPot(addressInput: string): Promise<PublicPotDetai
     metadataURI,
     totalContributed,
     totalRefunded,
+    totalPaidOut,
     paidOut,
     contributionOpen,
     payoutEligible,
@@ -513,6 +703,8 @@ export async function getPublicPot(addressInput: string): Promise<PublicPotDetai
   ] = await Promise.all([
     client.readContract({ address, abi: potAbi, functionName: "token", blockNumber }),
     client.readContract({ address, abi: potAbi, functionName: "organizer", blockNumber }),
+    client.readContract({ address, abi: potAbi, functionName: "payoutRecipient", blockNumber }),
+    client.readContract({ address, abi: potAbi, functionName: "fundingMode", blockNumber }),
     client.readContract({ address, abi: potAbi, functionName: "targetBased", blockNumber }),
     client.readContract({ address, abi: potAbi, functionName: "targetAmount", blockNumber }),
     client.readContract({ address, abi: potAbi, functionName: "deadline", blockNumber }),
@@ -521,6 +713,7 @@ export async function getPublicPot(addressInput: string): Promise<PublicPotDetai
     client.readContract({ address, abi: potAbi, functionName: "metadataURI", blockNumber }),
     client.readContract({ address, abi: potAbi, functionName: "totalContributed", blockNumber }),
     client.readContract({ address, abi: potAbi, functionName: "totalRefunded", blockNumber }),
+    client.readContract({ address, abi: potAbi, functionName: "totalPaidOut", blockNumber }),
     client.readContract({ address, abi: potAbi, functionName: "paidOut", blockNumber }),
     client.readContract({ address, abi: potAbi, functionName: "isContributionOpen", blockNumber }),
     client.readContract({ address, abi: potAbi, functionName: "isPayoutEligible", blockNumber }),
@@ -530,7 +723,7 @@ export async function getPublicPot(addressInput: string): Promise<PublicPotDetai
     throw new PublicPotError("Could not load this pot’s current contract state.", 502);
   });
 
-  const [tokenDecimals, tokenSymbol] = await Promise.all([
+  const [tokenDecimals, tokenSymbol, currentBalance] = await Promise.all([
     client.readContract({
       address: token,
       abi: tokenAbi,
@@ -541,6 +734,13 @@ export async function getPublicPot(addressInput: string): Promise<PublicPotDetai
       address: token,
       abi: tokenAbi,
       functionName: "symbol",
+      blockNumber,
+    }),
+    client.readContract({
+      address: token,
+      abi: tokenAbi,
+      functionName: "balanceOf",
+      args: [address],
       blockNumber,
     }),
   ]).catch((error: unknown) => {
@@ -565,25 +765,52 @@ export async function getPublicPot(addressInput: string): Promise<PublicPotDetai
     limit: String(MAX_PAGE_SIZE),
   });
 
-  const [metadataRows, eventRows] = await Promise.all([
-    fetchSupabase(
-      environment,
-      `pots?${metadataParameters.toString()}`,
-      isMetadataRows,
-    ),
-    fetchSupabase(
-      environment,
-      `pot_events?${eventParameters.toString()}`,
-      isEventRows,
-    ),
-  ]);
+  const metadataRows = await fetchPrivatePotData(
+    environment,
+    `pots?${metadataParameters.toString()}`,
+    isMetadataRows,
+  );
   const metadata = metadataRows[0];
+  if (!metadata) throw new PublicPotError("This pot is not available here.", 404);
+  if (!metadata.is_public) {
+    if (typeof privateAccessKey !== "string" || !/^[0-9a-f]{64}$/.test(privateAccessKey)) {
+      throw new PublicPotError("This pot isn’t available. Check the link with the person who shared it.", 404);
+    }
+    const accessParameters = new URLSearchParams({
+      select: "access_key_hash",
+      chain_id: `eq.${baseSepolia.id}`,
+      pot_address: `eq.${address.toLowerCase()}`,
+      limit: "1",
+    });
+    const accessRows = await fetchPrivatePotData(
+      environment,
+      `private_pot_access?${accessParameters.toString()}`,
+      isPrivatePotAccessRows,
+    );
+    const submittedHash = await hashPrivateAccessKey(privateAccessKey);
+    if (accessRows.length !== 1 || !hashesMatch(accessRows[0].access_key_hash, submittedHash)) {
+      throw new PublicPotError("This pot isn’t available. Check the link with the person who shared it.", 404);
+    }
+  }
+  const eventRows = metadata.is_public
+    ? await fetchSupabase(
+        environment,
+        `pot_events?${eventParameters.toString()}`,
+        isEventRows,
+      )
+    : await fetchPrivatePotData(
+        environment,
+        `pot_events?${eventParameters.toString()}`,
+        isEventRows,
+      );
   const explorerUrl = baseSepolia.blockExplorers.default.url;
 
   return {
     address,
     chainId,
     organizer,
+    payoutRecipient,
+    fundingMode,
     token,
     name,
     metadataURI,
@@ -596,6 +823,8 @@ export async function getPublicPot(addressInput: string): Promise<PublicPotDetai
     minimumContribution: minimumContribution.toString(),
     totalContributed: totalContributed.toString(),
     totalRefunded: totalRefunded.toString(),
+    totalPaidOut: totalPaidOut.toString(),
+    currentBalance: currentBalance.toString(),
     tokenDecimals,
     tokenSymbol,
     paidOut,
@@ -646,9 +875,59 @@ export async function getPublicOrganizerPots(
     return {
       address,
       name: row.name,
+      fundingMode: amount.fundingMode,
       targetBased: row.target_based,
       createdBlock: row.created_block,
       escrowBalance: amount.escrowBalance,
+      totalContributed: amount.totalContributed,
+      contributionOpen: amount.contributionOpen,
+      paidOut: amount.paidOut,
+    };
+  });
+}
+
+export async function getPublicDiscoveryPots(queryInput = ""): Promise<PublicDiscoveryPot[]> {
+  const query = queryInput.trim();
+  if (query.length > 60 || (query && !/^[\p{L}\p{N}\s'-]+$/u.test(query))) {
+    throw new PublicPotError("Search using words, numbers, spaces, apostrophes, or hyphens.", 400);
+  }
+  const environment = getSupabaseEnvironment();
+  const parameters = new URLSearchParams({
+    select: "address,organizer,name,description,cover_image_url,target_amount,deadline,created_block",
+    chain_id: `eq.${baseSepolia.id}`,
+    is_public: "eq.true",
+    order: "created_block.desc",
+    limit: String(MAX_PAGE_SIZE),
+  });
+  if (query) {
+    parameters.set("or", `(name.ilike.*${query}*,description.ilike.*${query}*)`);
+  }
+  const rows = await fetchSupabase(
+    environment,
+    `pots?${parameters.toString()}`,
+    isPublicDiscoveryPotRows,
+  );
+  if (rows.length === 0) return [];
+  const addresses = rows.map((row) => getAddress(row.address));
+  const amounts = await getVerifiedPotAmounts(addresses);
+  return rows.map((row, index) => {
+    const amount = amounts.get(addresses[index].toLowerCase());
+    if (!amount) {
+      throw new PublicPotError("A public pot could not be verified against Base Sepolia.", 502);
+    }
+    return {
+      address: addresses[index],
+      organizer: getAddress(row.organizer),
+      name: row.name,
+      description: row.description,
+      coverImageUrl: row.cover_image_url,
+      targetAmount: row.target_amount,
+      deadline: row.deadline,
+      createdBlock: row.created_block,
+      fundingMode: amount.fundingMode,
+      escrowBalance: amount.escrowBalance,
+      totalContributed: amount.totalContributed,
+      contributionOpen: amount.contributionOpen,
     };
   });
 }
@@ -710,11 +989,15 @@ export async function getPublicParticipatedPots(
     return [{
       address: getAddress(pot.address),
       name: pot.name,
+      fundingMode: amount.fundingMode,
       targetBased: pot.target_based,
       createdBlock: pot.created_block,
       lastContributionBlock,
       contributedAmount: amount.contributedAmount,
       escrowBalance: amount.escrowBalance,
+      totalContributed: amount.totalContributed,
+      contributionOpen: amount.contributionOpen,
+      paidOut: amount.paidOut,
     }];
   });
   return pots.sort((left, right) => {

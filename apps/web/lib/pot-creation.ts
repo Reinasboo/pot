@@ -1,6 +1,10 @@
-import { parseUnits } from "viem";
+import { getAddress, isAddress, parseUnits } from "viem";
 
-export type SettlementMode = "target" | "flexible";
+export type SettlementMode =
+  | "target"
+  | "flexible"
+  | "crowdfunding-deadline"
+  | "crowdfunding-anytime";
 export const SETTLEMENT_TOKEN_DECIMALS = 6;
 
 const UINT256_MAX = (BigInt(1) << BigInt(256)) - BigInt(1);
@@ -12,7 +16,13 @@ export type PotDraft = {
   target: string;
   deadline: string;
   minimum: string;
+  payoutRecipient: string;
+  isPublic?: boolean;
 };
+
+export function isCrowdfundingMode(mode: SettlementMode): boolean {
+  return mode === "crowdfunding-deadline" || mode === "crowdfunding-anytime";
+}
 
 export function isPositiveAmount(value: string): boolean {
   if (!/^(?:0|[1-9]\d{0,77})(?:\.\d{1,6})?$/.test(value)) return false;
@@ -56,9 +66,17 @@ export function validatePotDraft(draft: PotDraft, now = Date.now()): string[] {
     errors.push("Enter a minimum contribution greater than zero, with up to 6 decimal places.");
   }
 
-  if (draft.mode === "target") {
+  if (draft.mode === "flexible") {
+    errors.push(
+      "The organizer-decides rule is no longer available for new pots. Choose a goal-based or crowdfunding rule.",
+    );
+  } else {
     if (!isPositiveAmount(draft.target)) {
-      errors.push("Enter a goal greater than zero, with up to 6 decimal places.");
+      errors.push(
+        isCrowdfundingMode(draft.mode)
+          ? "Enter a fundraising goal greater than zero, with up to 6 decimal places."
+          : "Enter a goal greater than zero, with up to 6 decimal places.",
+      );
     }
     if (
       isPositiveAmount(draft.target) &&
@@ -68,13 +86,17 @@ export function validatePotDraft(draft: PotDraft, now = Date.now()): string[] {
       errors.push("The minimum contribution cannot be greater than the goal.");
     }
     if (!draft.deadline) {
-      errors.push("Choose a deadline for a goal-based pot.");
+      errors.push("Choose a deadline for this pot.");
     } else {
       const deadline = new Date(draft.deadline);
       if (!Number.isFinite(deadline.getTime()) || deadline.getTime() <= now) {
         errors.push("Choose a deadline in the future.");
       }
     }
+  }
+
+  if (isCrowdfundingMode(draft.mode) && !isAddress(draft.payoutRecipient.trim())) {
+    errors.push("Enter a valid approved payout wallet address.");
   }
 
   return errors;
@@ -84,13 +106,13 @@ export function getPotFactoryCreateArguments(
   draft: PotDraft,
   now = Date.now(),
 ): readonly [string, string, boolean, bigint, bigint, bigint] {
+  if (draft.mode !== "target") {
+    throw new Error("Choose a supported pot rule before creating a standard pot.");
+  }
   const errors = validatePotDraft(draft, now);
   if (errors.length > 0) throw new Error(errors.join(" "));
 
-  const targetBased = draft.mode === "target";
-  const deadlineSeconds = targetBased
-    ? BigInt(Math.floor(new Date(draft.deadline).getTime() / 1000))
-    : BigInt(0);
+  const deadlineSeconds = BigInt(Math.floor(new Date(draft.deadline).getTime() / 1000));
   if (deadlineSeconds >= (BigInt(1) << BigInt(64))) {
     throw new Error("The pot deadline exceeds the contract's supported range.");
   }
@@ -98,9 +120,35 @@ export function getPotFactoryCreateArguments(
   return [
     draft.name.trim(),
     "",
-    targetBased,
-    targetBased ? parseUnits(draft.target, SETTLEMENT_TOKEN_DECIMALS) : BigInt(0),
+    true,
+    parseUnits(draft.target, SETTLEMENT_TOKEN_DECIMALS),
     deadlineSeconds,
     parseUnits(draft.minimum, SETTLEMENT_TOKEN_DECIMALS),
+  ];
+}
+
+export function getCrowdfundingCreateArguments(
+  draft: PotDraft,
+  now = Date.now(),
+): readonly [string, string, number, bigint, bigint, bigint, `0x${string}`] {
+  const errors = validatePotDraft(draft, now);
+  if (errors.length > 0) throw new Error(errors.join(" "));
+  if (!isCrowdfundingMode(draft.mode)) {
+    throw new Error("Choose a crowdfunding rule before creating a crowdfunding pot.");
+  }
+
+  const deadlineSeconds = BigInt(Math.floor(new Date(draft.deadline).getTime() / 1000));
+  if (deadlineSeconds >= (BigInt(1) << BigInt(64))) {
+    throw new Error("The pot deadline exceeds the contract's supported range.");
+  }
+
+  return [
+    draft.name.trim(),
+    "",
+    draft.mode === "crowdfunding-deadline" ? 2 : 3,
+    parseUnits(draft.target, SETTLEMENT_TOKEN_DECIMALS),
+    deadlineSeconds,
+    parseUnits(draft.minimum, SETTLEMENT_TOKEN_DECIMALS),
+    getAddress(draft.payoutRecipient.trim()),
   ];
 }

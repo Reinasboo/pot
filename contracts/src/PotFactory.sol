@@ -6,6 +6,9 @@ import { Pot } from "./Pot.sol";
 
 contract PotFactory {
     error InvalidToken();
+    error UnsupportedFundingMode();
+    error InvalidCrowdfundingMode();
+    error InvalidPayoutRecipient();
 
     IERC20 public immutable token;
     address[] private pots;
@@ -37,12 +40,57 @@ contract PotFactory {
         uint64 deadline,
         uint256 minimumContribution
     ) external returns (address potAddress) {
+        if (!targetBased) revert UnsupportedFundingMode();
+        return
+            _createPot(
+                name, metadataURI, 0, address(0), targetAmount, deadline, minimumContribution
+            );
+    }
+
+    function createCrowdfundingPot(
+        string calldata name,
+        string calldata metadataURI,
+        uint8 fundingMode,
+        uint256 targetAmount,
+        uint64 deadline,
+        uint256 minimumContribution,
+        address payoutRecipient
+    ) external returns (address potAddress) {
+        if (fundingMode != 2 && fundingMode != 3) {
+            revert InvalidCrowdfundingMode();
+        }
+        if (payoutRecipient == address(0)) revert InvalidPayoutRecipient();
+        return _createPot(
+            name,
+            metadataURI,
+            fundingMode,
+            payoutRecipient,
+            targetAmount,
+            deadline,
+            minimumContribution
+        );
+    }
+
+    function crowdfundingEnabled() external pure returns (bool) {
+        return true;
+    }
+
+    function _createPot(
+        string calldata name,
+        string calldata metadataURI,
+        uint8 fundingMode,
+        address payoutRecipient,
+        uint256 targetAmount,
+        uint64 deadline,
+        uint256 minimumContribution
+    ) private returns (address potAddress) {
         Pot pot = new Pot(
             token,
             msg.sender,
+            payoutRecipient,
             name,
             metadataURI,
-            targetBased,
+            fundingMode,
             targetAmount,
             deadline,
             minimumContribution
@@ -54,7 +102,7 @@ contract PotFactory {
         emit PotCreated(
             potAddress,
             msg.sender,
-            targetBased,
+            fundingMode != 1,
             targetAmount,
             deadline,
             minimumContribution,

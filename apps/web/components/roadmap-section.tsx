@@ -10,12 +10,12 @@ export function RoadmapSection({ standalone = false }: RoadmapSectionProps) {
       <div className="section-wrap">
         <div className="roadmap-heading">
           <div>
-            <p className="eyebrow">Built in stages, with purpose</p>
-            {standalone ? <h1>Where POT is headed.</h1> : <h2>Where POT is headed.</h2>}
+            <p className="eyebrow">Current status and future ideas</p>
+            {standalone ? <h1>What works now—and what doesn’t.</h1> : <h2>What works now—and what doesn’t.</h2>}
           </div>
           <p>
-            Today’s focus is core group payments. The rest is a roadmap—not a promise that these
-            features are live.
+            Stages 2 and 3 are implemented in the codebase, but need the database migration and
+            deployment before they’re available. Creating pots and collecting money are still off.
           </p>
         </div>
         <div className="roadmap-grid">

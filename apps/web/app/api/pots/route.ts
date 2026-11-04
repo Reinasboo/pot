@@ -9,9 +9,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const pots = await getPublicOrganizerPots(organizer);
     return Response.json(pots, {
-      headers: {
-        "cache-control": "public, max-age=0, s-maxage=15, stale-while-revalidate=30",
-      },
+      headers: { "cache-control": "private, no-store" },
     });
   } catch (error) {
     if (error instanceof PublicPotError) {

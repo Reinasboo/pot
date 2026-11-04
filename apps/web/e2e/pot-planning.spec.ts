@@ -3,21 +3,27 @@ import { expect, test } from "@playwright/test";
 test("landing page routes visitors to pot planning", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: /Make a plan/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Plan a trip, gift, or event together/ })).toBeVisible();
   await expect(page.getByText("No live payments", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Preview the plan now; collecting payments isn’t available yet/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Apps for groups" })).toBeVisible();
+  await expect(page.getByText(/A shared POT API could let other apps offer group funds.*future idea/i)).toBeVisible();
   await expect(page.getByRole("link", { name: "Roadmap" })).toHaveAttribute("href", "/roadmap");
   await page.getByRole("link", { name: "Plan a pot" }).first().click();
 
   await expect(page).toHaveURL(/\/create$/);
-  await expect(page.getByRole("heading", { name: "Set the rules before you share." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Plan a group fund." })).toBeVisible();
+  await expect(page.getByText(/does not create a public pot or collect money/i)).toBeVisible();
 });
 
 test("roadmap is directly accessible and labels gated MVP work", async ({ page }) => {
   await page.goto("/roadmap");
 
-  await expect(page.getByRole("heading", { name: "Where POT is headed." })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Core payments" })).toBeVisible();
-  await expect(page.getByText("Deployment, attribution, and two-wallet testing remain")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What works now—and what doesn’t." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create and fund a pot" })).toBeVisible();
+  await expect(page.getByText(/Creating a pot and collecting real money are not available yet/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Group funds in other apps" })).toBeVisible();
+  await expect(page.getByText("Planned only; no API is available today")).toBeVisible();
   const dimensions = await page.evaluate(() => ({
     documentWidth: document.documentElement.scrollWidth,
     viewportWidth: document.documentElement.clientWidth,
@@ -30,10 +36,10 @@ test("roadmap is directly accessible and labels gated MVP work", async ({ page }
 test("wallet onboarding explains safe Base Sepolia test setup", async ({ page }) => {
   await page.goto("/connect");
 
-  await expect(page.getByRole("heading", { name: "Connect your wallet." })).toBeVisible();
-  await expect(page.getByText("Base Sepolia", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Preparing two-wallet tests?" })).toBeVisible();
-  await expect(page.getByText(/live pot transactions are not enabled yet/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose your wallet." })).toBeVisible();
+  await expect(page.getByText("Base Sepolia test network", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "This is a test network" })).toBeVisible();
+  await expect(page.getByText(/does not approve a payment or give POT permission to move money/i)).toBeVisible();
   await expect(page.getByRole("link", { name: "Circle USDC testnet faucet" })).toHaveAttribute(
     "href",
     "https://faucet.circle.com/",
@@ -85,34 +91,35 @@ test("connects an injected wallet, recovers from wrong network, and disconnects"
   await page.goto("/connect");
 
   await page.getByRole("button", { name: /Injected/ }).click();
-  await expect(page.getByRole("heading", { name: "You’re connected." })).toBeVisible();
-  await expect(page.locator(".wallet-details")).toContainText("Unsupported network");
+  await expect(page.getByRole("heading", { name: "Wallet connected." })).toBeVisible();
+  await expect(page.locator(".wallet-details")).toContainText("Not on Base Sepolia");
 
   await page.getByRole("button", { name: "Switch to Base Sepolia" }).click();
   await expect(page.locator(".wallet-details")).toContainText("Base Sepolia");
-  await expect(page.getByText("Connected to the supported test network")).toBeVisible();
+  await expect(page.getByText("Ready to view pots on the test network")).toBeVisible();
 
   await page.getByRole("button", { name: "Disconnect wallet" }).click();
-  await expect(page.getByRole("heading", { name: "Connect your wallet." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose your wallet." })).toBeVisible();
 });
 
-test("validates goal rules and previews a flexible pot", async ({ page }) => {
+test("validates and previews a goal-based pot", async ({ page }) => {
   await page.goto("/create");
-  await page.getByRole("button", { name: "Preview pot rules" }).click();
+  await expect(page.getByRole("radio", { name: /Let the organizer decide/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Preview this plan" }).click();
 
   const alert = page.locator(".pot-form-errors");
   await expect(alert).toContainText("Enter a name for your pot.");
   await expect(alert).toContainText("Enter a minimum contribution");
   await expect(alert).toContainText("Enter a goal greater than zero");
-  await expect(alert).toContainText("Choose a deadline for a goal-based pot.");
+  await expect(alert).toContainText("Choose a deadline for this pot.");
 
   await page.getByLabel("Pot name").fill("Community trip");
   await page.getByLabel("What is this pot for? (optional)").fill("A weekend away together.");
   await page.getByLabel("Funding goal").fill("250");
-  await page.getByLabel("Minimum contribution").fill("5");
+  await page.getByLabel("Smallest amount someone can contribute").fill("5");
   const futureDeadline = new Date(Date.now() + 86_400_000).toISOString().slice(0, 16);
   await page.locator("#pot-deadline").fill(futureDeadline);
-  await page.getByRole("button", { name: "Preview pot rules" }).click();
+  await page.getByRole("button", { name: "Preview this plan" }).click();
 
   const preview = page.locator(".pot-create-preview");
   await expect(preview.getByRole("heading", { name: "Community trip" })).toBeVisible();
@@ -120,27 +127,46 @@ test("validates goal rules and previews a flexible pot", async ({ page }) => {
   await expect(preview).toContainText("A weekend away together.");
   await expect(alert).toHaveCount(0);
 
-  await page.getByRole("radio", { name: /Flexible/ }).check();
-  await expect(page.getByLabel("Funding goal")).toHaveCount(0);
-  await expect(page.locator("#pot-deadline")).toHaveCount(0);
-  await page.getByRole("button", { name: "Preview pot rules" }).click();
-  await expect(preview).toContainText("Flexible");
-  await expect(preview).not.toContainText("Funding goal");
+});
+
+test("previews both crowdfunding withdrawal rules and the visible payout wallet", async ({ page }) => {
+  await page.goto("/create");
+  await page.getByRole("radio", { name: /Crowdfund until the deadline/ }).check();
+  await page.getByLabel("Pot name").fill("Community fundraiser");
+  await page.getByLabel("Fundraising goal").fill("100");
+  await page.getByLabel("Smallest amount someone can contribute").fill("1");
+  await page.getByLabel("Approved payout wallet").fill(
+    "0x1111111111111111111111111111111111111111",
+  );
+  await page.locator("#pot-deadline").fill(
+    new Date(Date.now() + 86_400_000).toISOString().slice(0, 16),
+  );
+
+  await page.getByRole("button", { name: "Preview this plan" }).click();
+  const preview = page.locator(".pot-create-preview");
+  await expect(preview).toContainText("Crowdfunding; payout after deadline");
+  await expect(preview).toContainText("0x1111111111111111111111111111111111111111");
+  await expect(preview).toContainText("Contributors cannot claim refunds under this rule.");
+
+  await page.getByRole("radio", { name: /Let the approved wallet withdraw as funds come in/ }).check();
+  await page.getByRole("button", { name: "Preview this plan" }).click();
+  await expect(preview).toContainText("approved wallet may withdraw anytime");
+  await expect(preview).toContainText("withdraw the current balance at any time");
 });
 
 test("keeps onchain creation disabled without a verified factory", async ({ page }) => {
   await page.goto("/create");
   await page.getByLabel("Pot name").fill("Test pot");
   await page.getByLabel("Funding goal").fill("25");
-  await page.getByLabel("Minimum contribution").fill("1");
+  await page.getByLabel("Smallest amount someone can contribute").fill("1");
   await page.locator("#pot-deadline").fill(
     new Date(Date.now() + 86_400_000).toISOString().slice(0, 16),
   );
-  await page.getByRole("button", { name: "Preview pot rules" }).click();
+  await page.getByRole("button", { name: "Preview this plan" }).click();
 
-  await expect(page.getByRole("button", { name: "Create pot on Base Sepolia" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Create pot" })).toBeDisabled();
   await expect(page.locator(".pot-create-unavailable")).toContainText(
-    "Onchain creation is disabled until a deployed Base Sepolia factory is configured.",
+    "You can preview and save this plan, but you cannot create a public pot yet.",
   );
 });
 
@@ -157,6 +183,8 @@ test("shows the shared pot contribution and settlement forms without enabling an
         address: potAddress,
         chainId: 84532,
         organizer: "0x2222222222222222222222222222222222222222",
+        payoutRecipient: "0x2222222222222222222222222222222222222222",
+        fundingMode: 0,
         token: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
         name: "Shared trip",
         metadataURI: "",
@@ -169,6 +197,8 @@ test("shows the shared pot contribution and settlement forms without enabling an
         minimumContribution: "1000000",
         totalContributed: "0",
         totalRefunded: "0",
+        totalPaidOut: "0",
+        currentBalance: "0",
         tokenDecimals: 6,
         tokenSymbol: "USDC",
         paidOut: false,
@@ -235,7 +265,7 @@ test("publishes public pot description only after the organizer signs and consen
   }, walletAddress);
   await page.goto("/connect");
   await page.getByRole("button", { name: /Injected/ }).click();
-  await expect(page.getByRole("heading", { name: "You’re connected." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Wallet connected." })).toBeVisible();
 
   await page.route(`**/api/pots/${potAddress}`, (route) =>
     route.fulfill({
@@ -245,6 +275,8 @@ test("publishes public pot description only after the organizer signs and consen
         address: potAddress,
         chainId: 84532,
         organizer: walletAddress,
+        payoutRecipient: walletAddress,
+        fundingMode: 1,
         token: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
         name: "Shared trip",
         metadataURI: "",
@@ -257,6 +289,8 @@ test("publishes public pot description only after the organizer signs and consen
         minimumContribution: "1000000",
         totalContributed: "0",
         totalRefunded: "0",
+        totalPaidOut: "0",
+        currentBalance: "0",
         tokenDecimals: 6,
         tokenSymbol: "USDC",
         paidOut: false,
@@ -291,19 +325,82 @@ test("publishes public pot description only after the organizer signs and consen
   });
 
   await page.goto(`/pot/${potAddress}`);
-  const editor = page.getByRole("region", { name: "Public description" });
+  const editor = page.getByRole("region", { name: "Who can open this pot?" });
   await expect(editor).toBeVisible();
-  await expect(editor.getByRole("button", { name: "Sign and publish description" })).toBeDisabled();
-  await editor.getByRole("textbox", { name: "Description" }).fill("A weekend away together.");
-  await editor.getByLabel("I understand this description will be public.").check();
-  await editor.getByRole("button", { name: "Sign and publish description" }).click();
+  await expect(editor.getByRole("button", { name: "Sign and make pot public" })).toBeDisabled();
+  await editor.getByRole("textbox", { name: /Description/ }).fill("A weekend away together.");
+  await editor.getByLabel("I understand anyone can find this pot and read its description.").check();
+  await editor.getByRole("button", { name: "Sign and make pot public" }).click();
 
-  await expect(editor.getByRole("status")).toContainText("Public description saved.");
+  await expect(editor.getByRole("status")).toContainText("Saved. Anyone can find and open this pot.");
   await expect.poll(() => submittedUpdate?.description).toBe("A weekend away together.");
   await expect.poll(() => challengedDescription).toBe("A weekend away together.");
   expect(submittedUpdate?.walletAddress).toBe(walletAddress);
+  expect(submittedUpdate?.isPublic).toBe(true);
+  expect(submittedUpdate?.accessKey).toBeNull();
   expect(typeof submittedUpdate?.signature).toBe("string");
   await expect(page.getByText("A weekend away together.").first()).toBeVisible();
+});
+
+test("private pots require the designated fragment link and send its key only in a header", async ({ page }) => {
+  const potAddress = "0x1111111111111111111111111111111111111111";
+  const accessKey = "a".repeat(64);
+  const pot = {
+    address: potAddress,
+    chainId: 84532,
+    organizer: "0x2222222222222222222222222222222222222222",
+    payoutRecipient: "0x2222222222222222222222222222222222222222",
+    fundingMode: 1,
+    token: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    name: "Friends’ cabin weekend",
+    metadataURI: "",
+    description: "A private group plan.",
+    coverImageUrl: null,
+    isPublic: false,
+    targetBased: false,
+    targetAmount: "0",
+    deadline: "0",
+    minimumContribution: "1000000",
+    totalContributed: "0",
+    totalRefunded: "0",
+    totalPaidOut: "0",
+    currentBalance: "0",
+    tokenDecimals: 6,
+    tokenSymbol: "USDC",
+    paidOut: false,
+    contributionOpen: true,
+    payoutEligible: false,
+    refundEligible: false,
+    explorerUrl: "https://sepolia.basescan.org",
+    events: [],
+  };
+  let observedAccessKey: string | undefined;
+  await page.route(`**/api/pots/${potAddress}`, async (route) => {
+    observedAccessKey = route.request().headers()["x-pot-access-key"];
+    expect(route.request().url()).not.toContain("access=");
+    if (observedAccessKey !== accessKey) {
+      await route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "This pot isn’t available. Check the link with the person who shared it." }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(pot),
+    });
+  });
+
+  await page.goto(`/pot/${potAddress}`);
+  await expect(page.getByRole("heading", { name: "We can’t open this pot." })).toBeVisible();
+
+  await page.goto(`/pot/${potAddress}#access=${accessKey}`);
+  await expect(page.getByRole("heading", { name: "Friends’ cabin weekend" })).toBeVisible();
+  await expect(page.getByText("Private · anyone with this link can open it")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy private link" })).toBeVisible();
+  expect(observedAccessKey).toBe(accessKey);
 });
 
 test("dashboard separates created pots from publicly indexed contributions", async ({ page }) => {
@@ -343,9 +440,13 @@ test("dashboard separates created pots from publicly indexed contributions", asy
         {
           address: createdPotAddress,
           name: "Organizer pot",
+          fundingMode: 0,
           targetBased: true,
           createdBlock: "100",
           escrowBalance: "25000001",
+          totalContributed: "50000000",
+          contributionOpen: true,
+          paidOut: false,
         },
       ]),
     }),
@@ -358,11 +459,15 @@ test("dashboard separates created pots from publicly indexed contributions", asy
         {
           address: participatedPotAddress,
           name: "Contributor pot",
+          fundingMode: 1,
           targetBased: false,
           createdBlock: "90",
           lastContributionBlock: "120",
           contributedAmount: "5000000",
           escrowBalance: "8000000",
+          totalContributed: "10000000",
+          contributionOpen: true,
+          paidOut: false,
         },
       ]),
     }),
@@ -375,18 +480,17 @@ test("dashboard separates created pots from publicly indexed contributions", asy
     "href",
     `/pot/${createdPotAddress}`,
   );
-  await expect(page.getByRole("heading", { name: "Pots you’ve contributed to" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pots you contributed to" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Contributor pot/ })).toHaveAttribute(
     "href",
     `/pot/${participatedPotAddress}`,
   );
-  await expect(page.getByText(/Last indexed contribution at block 120/)).toBeVisible();
   await expect(page.locator(".organizer-dashboard-totals").getByText("25.000001 USDC")).toBeVisible();
   await expect(page.locator(".organizer-dashboard-totals").getByText("5 USDC")).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Pots you created" }).locator(".organizer-pot-cards"),
-  ).toContainText("25.000001 USDC currently held");
-  await expect(page.getByText(/8 USDC currently held/)).toBeVisible();
+  ).toContainText("25.000001 USDC currently in the pot");
+  await expect(page.getByText(/You contributed 5 USDC in total; 8 USDC remains in the pot/)).toBeVisible();
   const dimensions = await page.evaluate(() => ({
     documentWidth: document.documentElement.scrollWidth,
     viewportWidth: document.documentElement.clientWidth,
@@ -397,7 +501,7 @@ test("dashboard separates created pots from publicly indexed contributions", asy
 test("restores and clears a saved local draft only after confirmation", async ({ page }) => {
   await page.goto("/create");
   await page.getByLabel("Pot name").fill("Saved trip");
-  await page.getByLabel("Minimum contribution").fill("2");
+  await page.getByLabel("Smallest amount someone can contribute").fill("2");
   await page.getByRole("button", { name: "Save draft on this device" }).click();
   await expect(page.getByRole("status")).toContainText("Draft saved in this browser");
 

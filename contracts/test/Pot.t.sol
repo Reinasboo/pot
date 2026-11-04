@@ -54,6 +54,7 @@ contract PotTest {
     Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
     uint256 private constant UNIT = 1e6;
     address private constant ORGANIZER = address(0xA11CE);
+    address private constant RECIPIENT = address(0xCAFE);
     address private constant ALICE = address(0xB0B);
     address private constant BOB = address(0xB0C);
     uint64 private constant DEADLINE = 2_000_000_000;
@@ -68,15 +69,15 @@ contract PotTest {
         token.mint(BOB, 100 * UNIT);
     }
 
-    function testCreatesFlexiblePotWithExplicitNoDeadlineRules() public {
-        Pot pot = _createPot(false, 0, 0, UNIT);
+    function testFactoryRejectsNewOrganizerDecidesPots() public {
+        vm.prank(ORGANIZER);
+        vm.expectRevert(PotFactory.UnsupportedFundingMode.selector);
+        factory.createPot("Legacy", "", false, 0, 0, UNIT);
+    }
 
-        _assertEq(pot.organizer(), ORGANIZER);
-        _assertFalse(pot.targetBased());
-        _assertEq(pot.deadline(), 0);
-        _assertTrue(factory.isPot(address(pot)));
-        _assertEq(factory.potCount(), 1);
-        _assertEq(factory.potAt(0), address(pot));
+    function testPotRejectsLegacyOrganizerDecidesMode() public {
+        vm.expectRevert(Pot.InvalidFundingMode.selector);
+        new Pot(IERC20(address(token)), ORGANIZER, address(0), "Legacy", "", 1, 0, 0, UNIT);
     }
 
     function testCreatesTargetPot() public {
@@ -85,6 +86,26 @@ contract PotTest {
         _assertTrue(pot.targetBased());
         _assertEq(pot.targetAmount(), 10 * UNIT);
         _assertEq(pot.deadline(), DEADLINE);
+    }
+
+    function testCreatesCrowdfundingPotWithVisibleRecipient() public {
+        Pot pot = _createCrowdfundingPot(2, 10 * UNIT, DEADLINE, UNIT);
+
+        _assertEq(pot.fundingMode(), 2);
+        _assertEq(pot.payoutRecipient(), RECIPIENT);
+        _assertTrue(pot.targetBased());
+    }
+
+    function testFactoryRejectsNonCrowdfundingModeForCrowdfundingPot() public {
+        vm.prank(ORGANIZER);
+        vm.expectRevert(PotFactory.InvalidCrowdfundingMode.selector);
+        factory.createCrowdfundingPot("Invalid", "", 0, 10 * UNIT, DEADLINE, UNIT, RECIPIENT);
+    }
+
+    function testFactoryRejectsZeroCrowdfundingRecipient() public {
+        vm.prank(ORGANIZER);
+        vm.expectRevert(PotFactory.InvalidPayoutRecipient.selector);
+        factory.createCrowdfundingPot("Invalid", "", 2, 10 * UNIT, DEADLINE, UNIT, address(0));
     }
 
     function testRejectsEmptyName() public {
@@ -103,8 +124,8 @@ contract PotTest {
         _create("Trip", true, 10 * UNIT, DEADLINE, UNIT);
     }
 
-    function testRejectsDeadlineOnFlexiblePot() public {
-        vm.expectRevert(Pot.InvalidTarget.selector);
+    function testFactoryRejectsOrganizerDecidesPotWithDeadline() public {
+        vm.expectRevert(PotFactory.UnsupportedFundingMode.selector);
         _create("Gift", false, 0, DEADLINE, UNIT);
     }
 
@@ -201,12 +222,9 @@ contract PotTest {
         vm.stopPrank();
     }
 
-    function testFlexiblePotAcceptsContributionsWithoutDeadline() public {
-        Pot pot = _createPot(false, 0, 0, UNIT);
-        vm.warp(uint256(DEADLINE) + 10_000_000);
-        _contribute(pot, ALICE, UNIT);
-
-        _assertEq(pot.totalContributed(), UNIT);
+    function testFactoryRejectsOrganizerDecidesPotWithoutDeadline() public {
+        vm.expectRevert(PotFactory.UnsupportedFundingMode.selector);
+        _create("Gift", false, 0, 0, UNIT);
     }
 
     function testPayoutCannotHappenBeforeEligibility() public {
@@ -218,8 +236,8 @@ contract PotTest {
     }
 
     function testOnlyOrganizerCanPayout() public {
-        Pot pot = _createPot(false, 0, 0, UNIT);
-        _contribute(pot, ALICE, UNIT);
+        Pot pot = _createPot(true, 10 * UNIT, DEADLINE, UNIT);
+        _contribute(pot, ALICE, 10 * UNIT);
 
         vm.prank(ALICE);
         vm.expectRevert(Pot.NotOrganizer.selector);
@@ -239,20 +257,96 @@ contract PotTest {
         _assertFalse(pot.isContributionOpen());
     }
 
-    function testFlexiblePotPayoutsAllContributions() public {
-        Pot pot = _createPot(false, 0, 0, UNIT);
+    function testDeadlineCrowdfundingPaysRecipientAfterMissedGoalWithoutRefunds() public {
+        Pot pot = _createCrowdfundingPot(2, 10 * UNIT, DEADLINE, UNIT);
         _contribute(pot, ALICE, 2 * UNIT);
-        _contribute(pot, BOB, 3 * UNIT);
+        vm.warp(DEADLINE);
+
+        _assertTrue(pot.isPayoutEligible());
+        _assertFalse(pot.isRefundEligible());
 
         vm.prank(ORGANIZER);
+        vm.expectRevert(Pot.NotPayoutRecipient.selector);
         pot.payout();
 
-        _assertEq(token.balanceOf(ORGANIZER), 5 * UNIT);
+        vm.prank(RECIPIENT);
+        pot.payout();
+
+        _assertEq(token.balanceOf(RECIPIENT), 2 * UNIT);
+        _assertTrue(pot.paidOut());
+        _assertFalse(pot.isRefundEligible());
+    }
+
+    function testDeadlineCrowdfundingKeepsAcceptingContributionsAboveGoalAndPaysAtDeadline()
+        public
+    {
+        Pot pot = _createCrowdfundingPot(2, 10 * UNIT, DEADLINE, UNIT);
+        _contribute(pot, ALICE, 10 * UNIT);
+        _contribute(pot, BOB, 2 * UNIT);
+
+        _assertTrue(pot.isContributionOpen());
+        _assertFalse(pot.isPayoutEligible());
+        vm.prank(RECIPIENT);
+        vm.expectRevert(Pot.PayoutNotEligible.selector);
+        pot.payout();
+
+        vm.warp(DEADLINE);
+        _assertFalse(pot.isContributionOpen());
+        _assertTrue(pot.isPayoutEligible());
+        vm.prank(RECIPIENT);
+        pot.payout();
+
+        _assertEq(token.balanceOf(RECIPIENT), 12 * UNIT);
+        _assertTrue(pot.paidOut());
+        _assertFalse(pot.isContributionOpen());
+    }
+
+    function testAnytimeCrowdfundingRecipientCanWithdrawCurrentBalanceAndKeepRaising() public {
+        Pot pot = _createCrowdfundingPot(3, 10 * UNIT, DEADLINE, UNIT);
+        _contribute(pot, ALICE, 2 * UNIT);
+
+        vm.prank(RECIPIENT);
+        pot.payout();
+
+        _assertEq(token.balanceOf(RECIPIENT), 2 * UNIT);
+        _assertFalse(pot.paidOut());
+        _assertTrue(pot.isContributionOpen());
+
+        _contribute(pot, BOB, 10 * UNIT);
+        _assertEq(pot.totalContributed(), 12 * UNIT);
+        _assertTrue(pot.isContributionOpen());
+        vm.prank(RECIPIENT);
+        pot.payout();
+
+        _assertEq(token.balanceOf(RECIPIENT), 12 * UNIT);
+        _assertFalse(pot.paidOut());
+        _contribute(pot, ALICE, 3 * UNIT);
+        vm.warp(DEADLINE);
+        vm.prank(RECIPIENT);
+        pot.payout();
+
+        _assertEq(token.balanceOf(RECIPIENT), 15 * UNIT);
+        _assertTrue(pot.paidOut());
+    }
+
+    function testAnytimeCrowdfundingCanWithdrawAfterDeadline() public {
+        Pot pot = _createCrowdfundingPot(3, 10 * UNIT, DEADLINE, UNIT);
+        _contribute(pot, ALICE, 2 * UNIT);
+        vm.warp(DEADLINE);
+
+        _assertFalse(pot.isContributionOpen());
+        _assertTrue(pot.isPayoutEligible());
+        _assertFalse(pot.isRefundEligible());
+
+        vm.prank(RECIPIENT);
+        pot.payout();
+
+        _assertEq(token.balanceOf(RECIPIENT), 2 * UNIT);
         _assertTrue(pot.paidOut());
     }
 
     function testPreventsDoublePayout() public {
-        Pot pot = _createPot(false, 0, 0, UNIT);
+        Pot pot = _createPot(true, UNIT, DEADLINE, UNIT);
         _contribute(pot, ALICE, UNIT);
         vm.prank(ORGANIZER);
         pot.payout();
@@ -342,7 +436,7 @@ contract PotTest {
     }
 
     function testPayoutTransferFailureRollsBackSettlementState() public {
-        Pot pot = _createPot(false, 0, 0, UNIT);
+        Pot pot = _createPot(true, UNIT, DEADLINE, UNIT);
         _contribute(pot, ALICE, UNIT);
         token.setTransfersDisabled(true);
 
@@ -408,6 +502,26 @@ contract PotTest {
         vm.prank(ORGANIZER);
         return Pot(
             factory.createPot(name, "", targetBased, targetAmount, deadline, minimumContribution)
+        );
+    }
+
+    function _createCrowdfundingPot(
+        uint8 fundingMode,
+        uint256 targetAmount,
+        uint64 deadline,
+        uint256 minimumContribution
+    ) private returns (Pot) {
+        vm.prank(ORGANIZER);
+        return Pot(
+            factory.createCrowdfundingPot(
+                "Crowdfunding",
+                "",
+                fundingMode,
+                targetAmount,
+                deadline,
+                minimumContribution,
+                RECIPIENT
+            )
         );
     }
 

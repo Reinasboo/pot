@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   compareAmounts,
+  getCrowdfundingCreateArguments,
   getPotFactoryCreateArguments,
   isPositiveAmount,
   validatePotDraft,
@@ -18,6 +19,7 @@ const validTargetDraft: PotDraft = {
   target: "250.00",
   deadline: "2030-01-02T00:00",
   minimum: "1",
+  payoutRecipient: "",
 };
 
 describe("isPositiveAmount", () => {
@@ -75,23 +77,46 @@ describe("validatePotDraft", () => {
 
   it("requires a strictly future deadline for target pots", () => {
     expect(validatePotDraft({ ...validTargetDraft, deadline: "" }, now)).toContain(
-      "Choose a deadline for a goal-based pot.",
+      "Choose a deadline for this pot.",
     );
     expect(
       validatePotDraft({ ...validTargetDraft, deadline: new Date(now).toISOString() }, now),
     ).toContain("Choose a deadline in the future.");
   });
 
-  it("does not require a target or deadline for flexible pots", () => {
+  it("rejects new pots using the retired organizer-decides rule", () => {
     expect(
       validatePotDraft(
         { ...validTargetDraft, mode: "flexible", target: "", deadline: "" },
         now,
       ),
-    ).toEqual([]);
+    ).toContain(
+      "The organizer-decides rule is no longer available for new pots. Choose a goal-based or crowdfunding rule.",
+    );
   });
 
-  it("encodes USDC values in six-decimal base units and clears flexible target rules", () => {
+  it.each(["crowdfunding-deadline", "crowdfunding-anytime"] as const)(
+    "requires a valid recipient for %s crowdfunding",
+    (mode) => {
+      const campaignDraft: PotDraft = {
+        ...validTargetDraft,
+        mode,
+        payoutRecipient: "not-an-address",
+      };
+
+      expect(validatePotDraft(campaignDraft, now)).toContain(
+        "Enter a valid approved payout wallet address.",
+      );
+      expect(
+        validatePotDraft(
+          { ...campaignDraft, payoutRecipient: "0x1111111111111111111111111111111111111111" },
+          now,
+        ),
+      ).toEqual([]);
+    },
+  );
+
+  it("encodes USDC values in six-decimal base units for goal-based pots", () => {
     expect(getPotFactoryCreateArguments(validTargetDraft, now)).toEqual([
       "Group trip",
       "",
@@ -101,19 +126,37 @@ describe("validatePotDraft", () => {
       BigInt(1_000_000),
     ]);
 
-    expect(
+    expect(() =>
       getPotFactoryCreateArguments(
         { ...validTargetDraft, mode: "flexible", target: "", deadline: "" },
         now,
       ),
-    ).toEqual([
+    ).toThrow("Choose a supported pot rule before creating a standard pot.");
+  });
+
+  it("encodes the two crowdfunding payout rules and the approved recipient", () => {
+    const payoutRecipient = "0x1111111111111111111111111111111111111111";
+    const deadlineDraft: PotDraft = {
+      ...validTargetDraft,
+      mode: "crowdfunding-deadline",
+      payoutRecipient,
+    };
+    const anytimeDraft: PotDraft = {
+      ...validTargetDraft,
+      mode: "crowdfunding-anytime",
+      payoutRecipient,
+    };
+
+    expect(getCrowdfundingCreateArguments(deadlineDraft, now)).toEqual([
       "Group trip",
       "",
-      false,
-      BigInt(0),
-      BigInt(0),
+      2,
+      BigInt(250_000_000),
+      BigInt(Math.floor(new Date(validTargetDraft.deadline).getTime() / 1000)),
       BigInt(1_000_000),
+      payoutRecipient,
     ]);
+    expect(getCrowdfundingCreateArguments(anytimeDraft, now)[2]).toBe(3);
   });
 
   it("counts purpose text by Unicode code points", () => {

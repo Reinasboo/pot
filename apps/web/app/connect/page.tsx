@@ -3,7 +3,7 @@ import { WalletConnection } from "@/components/wallet-connection";
 
 export const metadata = {
   title: "Connect wallet",
-  description: "Connect a compatible wallet to POT on Base Sepolia.",
+  description: "Connect a wallet to see public pots on Base Sepolia. Payments are not available yet.",
 };
 
 export default function ConnectPage() {
@@ -25,19 +25,20 @@ export default function ConnectPage() {
       <div className="connect-content">
         <div className="connect-intro">
           <p className="eyebrow"><span className="status-dot" /> Wallet setup</p>
-          <h1>A clear first step.</h1>
+          <h1>Connect a wallet to see your pots.</h1>
           <p>
-            Connect a compatible wallet to see how POT onboarding works. This prototype is
-            configured for Base Sepolia and does not yet create pots or handle payments.
+            Connecting shows the public pots linked to your wallet. It does not give POT access to
+            your funds or approve a payment. This site is set up for Base Sepolia testnet; pot
+            creation and payments are not available yet.
           </p>
         </div>
         <WalletConnection />
         <section className="connect-testnet-note" aria-labelledby="test-wallet-title">
-          <h2 id="test-wallet-title">Preparing two-wallet tests?</h2>
+          <h2 id="test-wallet-title">This is a test network</h2>
           <p>
-            Use two dedicated Base Sepolia accounts in separate browser profiles. Fund each with
-            test ETH for gas and test USDC. POT does not ask for recovery phrases or private keys,
-            and live pot transactions are not enabled yet.
+            Base Sepolia uses test ETH for transaction fees and test USDC. These tokens have no
+            mainnet value. Do not use a wallet that holds real assets. Live pot transactions are
+            currently disabled.
           </p>
           <p>
             <a href="https://portal.cdp.coinbase.com/products/faucet">Base Sepolia ETH faucet</a>

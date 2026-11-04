@@ -4,7 +4,7 @@ import { RoadmapSection } from "@/components/roadmap-section";
 
 export const metadata: Metadata = {
   title: "Roadmap",
-  description: "See POT’s current Base Sepolia MVP focus and planned future stages.",
+  description: "See which POT features work today, what is unavailable, and what is only planned.",
 };
 
 export default function RoadmapPage() {
@@ -21,6 +21,7 @@ export default function RoadmapPage() {
         </Link>
         <nav className="desktop-nav" aria-label="Main navigation">
           <Link href="/">Home</Link>
+          <Link href="/discover">Discover pots</Link>
           <Link href="/dashboard">My pots</Link>
         </nav>
         <div className="site-header-actions">

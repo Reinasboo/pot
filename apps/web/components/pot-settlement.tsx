@@ -16,7 +16,7 @@ import {
   potContractAbi,
   potFactoryAbi,
 } from "@/lib/pot-factory";
-import { canClaimPotRefund, canOrganizerPayout } from "@/lib/pot-settlement";
+import { canAuthorizedPayout, canClaimPotRefund } from "@/lib/pot-settlement";
 import { supportedChain } from "@/lib/wagmi";
 import type { PublicPotDetails } from "@/lib/public-pot";
 import { formatUsdcBaseUnits } from "@/lib/pot-contribution";
@@ -80,6 +80,13 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
     chainId: supportedChain.id,
     query: { enabled: canRead },
   });
+  const payoutRecipientQuery = useReadContract({
+    address: pot.address,
+    abi: potContractAbi,
+    functionName: "payoutRecipient",
+    chainId: supportedChain.id,
+    query: { enabled: canRead },
+  });
   const paidOutQuery = useReadContract({
     address: pot.address,
     abi: potContractAbi,
@@ -130,6 +137,7 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
     factoryTokenQuery,
     potTokenQuery,
     organizerQuery,
+    payoutRecipientQuery,
     paidOutQuery,
     totalContributedQuery,
     payoutEligibleQuery,
@@ -144,6 +152,7 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
     factoryTokenQuery.data !== undefined &&
     potTokenQuery.data !== undefined &&
     organizerQuery.data !== undefined &&
+    payoutRecipientQuery.data !== undefined &&
     paidOutQuery.data !== undefined &&
     totalContributedQuery.data !== undefined &&
     payoutEligibleQuery.data !== undefined &&
@@ -153,9 +162,14 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
   const tokenVerified =
     factoryTokenQuery.data?.toLowerCase() === circleBaseSepoliaUsdc.toLowerCase() &&
     potTokenQuery.data?.toLowerCase() === circleBaseSepoliaUsdc.toLowerCase();
+  const potDetailsMatch =
+    organizerQuery.data?.toLowerCase() === pot.organizer.toLowerCase() &&
+    payoutRecipientQuery.data?.toLowerCase() === pot.payoutRecipient.toLowerCase();
+  const availableToWithdraw = BigInt(pot.currentBalance);
   const walletSettlementState =
     walletAddress &&
     organizerQuery.data !== undefined &&
+    payoutRecipientQuery.data !== undefined &&
     paidOutQuery.data !== undefined &&
     payoutEligibleQuery.data !== undefined &&
     refundEligibleQuery.data !== undefined &&
@@ -163,7 +177,7 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
     refundClaimedQuery.data !== undefined
       ? {
           walletAddress,
-          organizer: organizerQuery.data,
+          payoutRecipient: payoutRecipientQuery.data,
           paidOut: paidOutQuery.data,
           payoutEligible: payoutEligibleQuery.data,
           refundEligible: refundEligibleQuery.data,
@@ -172,7 +186,7 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
         }
       : undefined;
   const payoutAllowed = walletSettlementState
-    ? canOrganizerPayout(walletSettlementState)
+    ? canAuthorizedPayout(walletSettlementState)
     : false;
   const refundAllowed = walletSettlementState ? canClaimPotRefund(walletSettlementState) : false;
   const actionsReady = Boolean(
@@ -184,6 +198,7 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
       chainDataReady &&
       registrationQuery.data === true &&
       tokenVerified &&
+      potDetailsMatch &&
       !hasReadError,
   );
   const transactionPending = phase === "submitting" || phase === "confirming";
@@ -216,6 +231,7 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
         factoryToken,
         potToken,
         organizer,
+        payoutRecipient,
         paidOut,
         payoutEligible,
         refundEligible,
@@ -242,6 +258,11 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
           address: pot.address,
           abi: potContractAbi,
           functionName: "organizer",
+        }),
+        publicClient.readContract({
+          address: pot.address,
+          abi: potContractAbi,
+          functionName: "payoutRecipient",
         }),
         publicClient.readContract({
           address: pot.address,
@@ -273,6 +294,12 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
       ]);
 
       if (!isRegistered) throw new Error("This pot is not registered by the configured factory.");
+      if (organizer.toLowerCase() !== pot.organizer.toLowerCase()) {
+        throw new Error("The displayed organizer does not match the pot contract.");
+      }
+      if (payoutRecipient.toLowerCase() !== pot.payoutRecipient.toLowerCase()) {
+        throw new Error("The displayed payout wallet does not match the pot contract.");
+      }
       if (
         factoryToken.toLowerCase() !== circleBaseSepoliaUsdc.toLowerCase() ||
         potToken.toLowerCase() !== circleBaseSepoliaUsdc.toLowerCase()
@@ -282,14 +309,14 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
 
       const freshState = {
         walletAddress,
-        organizer,
+        payoutRecipient,
         paidOut,
         payoutEligible,
         refundEligible,
         contribution,
         refundClaimed,
       };
-      if (nextAction === "payout" && !canOrganizerPayout(freshState)) {
+      if (nextAction === "payout" && !canAuthorizedPayout(freshState)) {
         throw new Error("Payout is no longer eligible for this wallet.");
       }
       if (nextAction === "refund" && !canClaimPotRefund(freshState)) {
@@ -349,47 +376,59 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
   }
 
   const stateMessage = !factoryAddress
-    ? "Settlement actions are disabled until the deployed Base Sepolia factory is configured."
+    ? "You cannot withdraw or claim a refund yet. POT has not deployed the contract that holds pot money."
     : !isConnected
-      ? "Connect your wallet to check organizer payout or personal refund eligibility."
+      ? "Connect your wallet to see whether you can withdraw or claim your contribution back."
       : !onSupportedNetwork
-        ? "Switch your wallet to Base Sepolia to check settlement eligibility."
+        ? "Switch your wallet to Base Sepolia testnet to check withdrawals or refunds."
         : !hasBuilderCode
-          ? "Settlement transactions are disabled until a Base Builder Code is configured."
+          ? "Withdrawals and refunds are turned off until this app is fully set up."
           : hasReadError
-            ? "Could not verify this pot’s settlement state on Base Sepolia. Refresh and try again."
+            ? "We couldn’t check this pot’s current rules. Refresh the page and try again."
             : isVerifying || !chainDataReady
-              ? "Checking current settlement eligibility on Base Sepolia…"
+                ? "Checking whether this pot can be withdrawn or refunded…"
               : registrationQuery.data !== true
-                ? "This address is not a pot registered by the configured factory."
+                  ? "This pot was not created by the configured POT contract."
+                : !potDetailsMatch
+                  ? "The displayed organizer or payout wallet does not match the pot contract."
                 : !tokenVerified
-                  ? "Settlement is disabled because this pot does not use Circle Base Sepolia USDC."
+                    ? "This pot does not use the verified USDC test token on Base Sepolia."
                   : paidOutQuery.data
-                    ? "This pot has already paid out. No further payout or refund can be claimed."
+                      ? pot.fundingMode === 2 || pot.fundingMode === 3
+                        ? "The approved wallet has withdrawn the remaining funds. No further withdrawal or refund is available."
+                        : "The organizer has withdrawn the money. No further withdrawal or refund is available."
                     : refundEligibleQuery.data
                       ? refundAllowed
-                        ? "This wallet’s contribution is eligible for a one-time refund."
+                          ? "You can claim your contribution back once."
                         : contributionQuery.data === BigInt(0)
-                          ? "Refunds are available, but this wallet has no contribution in this pot."
+                            ? "The deadline passed below the goal, but this wallet has no contribution to refund."
                           : refundClaimedQuery.data
-                            ? "This wallet has already claimed its refund."
-                            : "This wallet is not eligible to claim a refund."
+                              ? "You have already claimed your refund."
+                              : "This wallet cannot claim a refund from this pot."
                       : payoutEligibleQuery.data
                         ? payoutAllowed
-                          ? "The organizer can withdraw the pot’s confirmed USDC."
-                          : "The funding goal is reached and payout is available to the organizer."
+                            ? pot.fundingMode === 2 || pot.fundingMode === 3
+                              ? "The approved wallet can withdraw the available funds."
+                              : "The organizer can withdraw the money."
+                            : pot.fundingMode === 2 || pot.fundingMode === 3
+                              ? "Only the approved payout wallet can withdraw these funds."
+                              : "Only the organizer can withdraw these funds."
                         : pot.targetBased
-                          ? "Payout becomes available to the organizer when the funding goal is reached."
-                          : "The organizer can withdraw after the first confirmed contribution.";
+                          ? pot.fundingMode === 2
+                            ? "The approved wallet can withdraw after the deadline, whether or not the goal was reached."
+                            : pot.fundingMode === 3
+                              ? "The approved wallet can withdraw the available balance at any time. Contributions stay open until the deadline, even after the goal is reached."
+                              : "The organizer can withdraw only after the group reaches its goal."
+                          : "The organizer can withdraw after the first contribution is confirmed.";
 
   return (
     <section className="pot-settlement" aria-labelledby="pot-settlement-title">
       <div className="pot-settlement-heading">
         <div>
-          <p className="pot-eyebrow">ONCHAIN SETTLEMENT</p>
+          <p className="pot-eyebrow">WITHDRAWALS AND REFUNDS</p>
           <h2 id="pot-settlement-title">Payouts and refunds</h2>
         </div>
-        <span className="pot-settlement-token">USDC · Base Sepolia</span>
+        <span className="pot-settlement-token">USDC testnet</span>
       </div>
 
       {!isConnected && (
@@ -416,9 +455,11 @@ export function PotSettlement({ pot, onConfirmed }: Props) {
       {walletAddress && actionsReady && payoutAllowed && (
         <div className="pot-settlement-action">
           <p>
-            Confirmed pot balance:{" "}
+            Available to withdraw:{" "}
             <strong>
-              {formatUsdcBaseUnits(totalContributedQuery.data ?? BigInt(0))} USDC
+              {formatUsdcBaseUnits(
+                availableToWithdraw > BigInt(0) ? availableToWithdraw : BigInt(0),
+              )} USDC
             </strong>
           </p>
           <button

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
   createPublicClient,
   getAddress,
@@ -231,12 +231,12 @@ async function supabaseRequest(
       "Could not connect to Supabase for pot metadata",
       error instanceof Error ? error.name : "Unknown error",
     );
-    throw new PotMetadataError("Could not save this pot’s public description.", 502);
+    throw new PotMetadataError("Could not save this pot’s settings.", 502);
   }
 
   if (!response.ok) {
     console.error("Pot metadata database request failed", response.status);
-    throw new PotMetadataError("Could not save this pot’s public description.", 502);
+    throw new PotMetadataError("Could not save this pot’s settings.", 502);
   }
   if (response.status === 204) return null;
 
@@ -247,7 +247,7 @@ async function supabaseRequest(
       "Pot metadata database returned invalid JSON",
       error instanceof Error ? error.name : "Unknown error",
     );
-    throw new PotMetadataError("Could not save this pot’s public description.", 502);
+    throw new PotMetadataError("Could not save this pot’s settings.", 502);
   }
 }
 
@@ -276,6 +276,8 @@ export async function createPotMetadataChallenge(
   potInput: string,
   origin: string,
   description: string,
+  isPublic = true,
+  accessKeyHash: string | null = null,
 ): Promise<{ nonce: string; message: string; expiresAt: string }> {
   if (!isAddress(walletInput) || !isAddress(potInput)) {
     throw new PotMetadataError("A valid wallet and pot address are required.", 400);
@@ -285,6 +287,13 @@ export async function createPotMetadataChallenge(
     Array.from(description).length > maxDescriptionLength
   ) {
     throw new PotMetadataError("Description must be at most 2,000 characters.", 400);
+  }
+  if (
+    typeof isPublic !== "boolean" ||
+    (isPublic && accessKeyHash !== null) ||
+    (!isPublic && (typeof accessKeyHash !== "string" || !/^[0-9a-f]{64}$/.test(accessKeyHash)))
+  ) {
+    throw new PotMetadataError("Choose valid pot privacy settings.", 400);
   }
   const walletAddress = getAddress(walletInput);
   const potAddress = getAddress(potInput);
@@ -299,9 +308,12 @@ export async function createPotMetadataChallenge(
   const expiresAt = new Date(issuedAt.getTime() + nonceLifetimeMs);
   const nonce = randomBytes(16).toString("hex");
   const uri = new URL(`/pot/${potAddress.toLowerCase()}`, origin).toString();
-  const authorizationStatement =
-    `Authorize publishing this public description for pot ${potAddress}: ` +
-    JSON.stringify(normalizedDescription);
+  const authorizationStatement = getMetadataAuthorizationStatement(
+    potAddress,
+    normalizedDescription,
+    isPublic,
+    accessKeyHash,
+  );
   const message = `${new URL(origin).host} wants you to sign in with your Ethereum account:
 ${walletAddress}
 
@@ -336,12 +348,32 @@ Expiration Time: ${expiresAt.toISOString()}`;
   return { nonce, message, expiresAt: expiresAt.toISOString() };
 }
 
+function getMetadataAuthorizationStatement(
+  potAddress: string,
+  description: string,
+  isPublic: boolean,
+  accessKeyHash: string | null,
+): string {
+  return `Authorize updating pot visibility and description for pot ${potAddress}: ` +
+    JSON.stringify({
+      description,
+      visibility: isPublic ? "public" : "private",
+      accessKeyHash,
+    });
+}
+
+function hashAccessKey(accessKey: string): string {
+  return createHash("sha256").update(accessKey, "utf8").digest("hex");
+}
+
 export async function publishPotDescription(input: {
   walletAddress: string;
   potAddress: string;
   nonce: string;
   signature: string;
   description: string;
+  isPublic?: boolean;
+  accessKey?: string | null;
   origin: string;
 }): Promise<void> {
   if (!isAddress(input.walletAddress) || !isAddress(input.potAddress)) {
@@ -359,9 +391,20 @@ export async function publishPotDescription(input: {
   ) {
     throw new PotMetadataError("Description must be at most 2,000 characters.", 400);
   }
+  const isPublic = input.isPublic ?? true;
+  const accessKey = input.accessKey ?? null;
+  if (
+    typeof isPublic !== "boolean" ||
+    (isPublic && accessKey !== null) ||
+    (!isPublic &&
+      (typeof accessKey !== "string" || !/^[0-9a-f]{64}$/.test(accessKey)))
+  ) {
+    throw new PotMetadataError("Choose valid pot privacy settings.", 400);
+  }
 
   const walletAddress = getAddress(input.walletAddress);
   const potAddress = getAddress(input.potAddress);
+  const accessKeyHash = accessKey === null ? null : hashAccessKey(accessKey);
   const environment = getEnvironment();
   const nonceParameters = new URLSearchParams({
     select: "nonce,wallet_address,pot_address,origin,message,expires_at",
@@ -378,9 +421,12 @@ export async function publishPotDescription(input: {
   }
 
   const challenge = nonceRows[0];
-  const authorizationStatement =
-    `Authorize publishing this public description for pot ${potAddress}: ` +
-    JSON.stringify(input.description.trim());
+  const authorizationStatement = getMetadataAuthorizationStatement(
+    potAddress,
+    input.description.trim(),
+    isPublic,
+    accessKeyHash,
+  );
   if (
     challenge.wallet_address !== walletAddress.toLowerCase() ||
     challenge.pot_address !== potAddress.toLowerCase() ||
@@ -420,7 +466,6 @@ export async function publishPotDescription(input: {
     chain_id: `eq.${baseSepolia.id}`,
     address: `eq.${potAddress.toLowerCase()}`,
     organizer: `eq.${walletAddress.toLowerCase()}`,
-    is_public: "eq.true",
     limit: "1",
   });
   const indexedPots = await supabaseRequest(
@@ -429,7 +474,7 @@ export async function publishPotDescription(input: {
   );
   if (!Array.isArray(indexedPots) || indexedPots.length === 0) {
     throw new PotMetadataError(
-      "This public pot is not indexed yet. Wait for indexing, then sign again to publish.",
+      "This pot is not indexed yet. Wait for indexing, then sign again to save its settings.",
       409,
     );
   }
@@ -455,25 +500,24 @@ export async function publishPotDescription(input: {
     throw new PotMetadataError("The metadata authorization expired or was already used.", 401);
   }
 
-  const updateParameters = new URLSearchParams({
-    chain_id: `eq.${baseSepolia.id}`,
-    address: `eq.${potAddress.toLowerCase()}`,
-    organizer: `eq.${walletAddress.toLowerCase()}`,
-    is_public: "eq.true",
-    select: "address",
-  });
-  const updatedPots = await supabaseRequest(
+  const saved = await supabaseRequest(
     environment,
-    `pots?${updateParameters.toString()}`,
+    "rpc/save_pot_visibility",
     {
-      method: "PATCH",
-      headers: { prefer: "return=representation" },
-      body: JSON.stringify({ description: input.description.trim() }),
+      method: "POST",
+      body: JSON.stringify({
+        p_chain_id: baseSepolia.id,
+        p_pot_address: potAddress.toLowerCase(),
+        p_organizer: walletAddress.toLowerCase(),
+        p_description: input.description.trim(),
+        p_is_public: isPublic,
+        p_access_key_hash: accessKeyHash,
+      }),
     },
   );
-  if (!Array.isArray(updatedPots) || updatedPots.length !== 1) {
+  if (saved !== true) {
     throw new PotMetadataError(
-      "The public pot changed before its description could be saved. Request a new signature and try again.",
+      "The pot changed before its settings could be saved. Request a new signature and try again.",
       409,
     );
   }

@@ -14,14 +14,7 @@ The intended Base Sepolia test asset is Circle-issued USDC at
 `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (6 decimals), verified against the official Circle
 contract-address list and live Base Sepolia RPC. This is a testnet asset, not a mainnet token.
 
-### Flexible pot
-
-- The target and deadline must both be zero.
-- Contributions stay open until the organizer pays out.
-- The organizer can pay out all accounted contributions once there is at least one contribution.
-- Contributors cannot claim refunds from this mode.
-
-### Target pot
+### Goal with refunds (funding mode 0)
 
 - The target must be greater than zero and the deadline must be in the future at creation.
 - The minimum contribution must be nonzero and cannot exceed the target.
@@ -33,6 +26,28 @@ contract-address list and live Base Sepolia RPC. This is a testnet asset, not a 
 - The organizer can pay out once the target is reached, including after the deadline.
 - If the deadline is reached below target, each contributor can claim their full aggregated
   contribution once. No automatic refund is implied; each contributor must call `claimRefund`.
+
+### Crowdfunding to a deadline (funding mode 2)
+
+- The target and deadline are required. The target is a soft goal; contributions can exceed it and
+  remain open until the deadline.
+- The organizer names an immutable, nonzero payout wallet at creation. Contributors can inspect
+  this address before contributing, and only that wallet can call `payout`.
+- The named wallet can withdraw after the deadline, whether or not the target was reached. A missed
+  target never makes contributions refundable.
+- Funds are not transferred automatically: the payout wallet must submit a transaction.
+
+### Crowdfunding with early withdrawals (funding mode 3)
+
+- The target and deadline are required. The target is a soft goal; contributions can exceed it and
+  remain open until the deadline.
+- The named payout wallet can withdraw the entire current balance at any time. It can withdraw
+  again if more contributions arrive before the deadline closes the campaign.
+- Contributions are not refundable, including after the deadline.
+- The payout wallet cannot be changed after creation.
+
+The new factory rejects the previous organizer-decides mode. Existing deployments are immutable;
+any older organizer-decides pots keep the rules enforced by their original contracts.
 
 All contribution amounts and target values are raw ERC-20 base units. The contract does not assume
 or hard-code token decimals; the app must use the configured token's verified decimals when
@@ -54,9 +69,9 @@ npm run build
 npm run fmt:check
 ```
 
-Tests cover pot configuration, contributions, token selection, deadline and target boundaries,
-payout authorization and replay prevention, contributor refunds, fee-on-transfer rejection, and
-state rollback when token transfers fail.
+Tests cover pot configuration, crowdfunding payout timing and authorization, contributions, token
+selection, deadline and target boundaries, payout replay prevention, contributor refunds,
+fee-on-transfer rejection, and state rollback when token transfers fail.
 
 ## Deployment gate
 

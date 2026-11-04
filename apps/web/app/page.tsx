@@ -1,31 +1,37 @@
 import { RoadmapSection } from "@/components/roadmap-section";
 
 export const metadata = {
-  title: "POT — Shared plans, clear money rules",
+  title: "POT — Plan a group fund",
   description:
-    "Plan a group pot with visible goals and settlement rules. POT is an early Base Sepolia prototype; live payments are not available.",
+    "Set a group funding goal, deadline, and refund rules. Preview a plan for a trip, gift, or event. Live pots and payments are not available yet.",
 };
 
 const useCases = [
   {
     number: "01",
     title: "Group gifts",
-    description: "Make the birthday surprise about the person, not the payment chase.",
+    description: "Set a shared budget for a gift and show everyone the goal and deadline.",
   },
   {
     number: "02",
     title: "Trips together",
-    description: "Bring the shared plan and everyone’s contributions into one place.",
+    description: "Agree on the trip budget, who can add money, and what happens if you miss the goal.",
   },
   {
     number: "03",
-    title: "Community events",
-    description: "Give your group a clear goal, a simple way to chip in, and a shared view of progress.",
+    title: "Crowdfunding",
+    description:
+      "Preview who receives the funds and whether the approved wallet can withdraw at the deadline or as money comes in.",
   },
   {
     number: "04",
-    title: "Shared purchases",
-    description: "Coordinate the costs of the things your friends, family, or team need together.",
+    title: "Community events",
+    description: "Set a target for venue costs, supplies, or tickets before you collect money.",
+  },
+  {
+    number: "05",
+    title: "Apps for groups",
+    description: "A shared POT API could let other apps offer group funds. It’s a future idea, not a feature you can use today.",
   },
 ];
 
@@ -56,8 +62,9 @@ export default function Home() {
           <span>POT</span>
         </a>
         <nav className="desktop-nav" aria-label="Main navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href="#rules">Clear rules</a>
+          <a href="#how-it-works">What works today</a>
+          <a href="#rules">How the rules work</a>
+          <a href="/discover">Discover pots</a>
           <a href="/dashboard">My pots</a>
         </nav>
         <div className="site-header-actions">
@@ -70,89 +77,91 @@ export default function Home() {
 
       <section className="hero section-wrap" id="top">
         <div className="hero-copy">
-          <p className="eyebrow"><span className="status-dot" /> A group payments prototype</p>
-          <h1>Make a plan.<br />Keep the <span>rules clear.</span></h1>
+          <p className="eyebrow"><span className="status-dot" /> Plan the money before your group pays</p>
+          <h1>Plan a trip,<br />gift, or event<br /><span>together.</span></h1>
           <p className="hero-description">
-            POT is being built to help groups set a shared goal, understand what happens to the
-            money, and follow contributions once payments are live.
+            Set a goal and deadline. Decide who can withdraw the money and what happens if you
+            fall short. Preview the plan now; collecting payments isn’t available yet.
           </p>
           <div className="hero-actions">
             <a className="button button-primary" href="/create">
-              Plan a pot <ArrowIcon />
+              Preview your plan <ArrowIcon />
             </a>
-            <a className="text-link" href="/dashboard">View your pots</a>
+            <a className="text-link" href="#how-it-works">See how it works</a>
           </div>
           <div className="hero-proof">
             <div className="proof-mark"><span>◎</span></div>
-            <p><strong>Planning stays on this device.</strong><br />No wallet request or payment is made.</p>
+            <p><strong>Your plan stays in this browser.</strong><br />Previewing does not connect a wallet or move money.</p>
           </div>
         </div>
 
-        <div className="preview-wrap" aria-label="Example of POT settlement rules">
+        <div className="preview-wrap" aria-label="Example of what happens to the money">
           <article className="pot-preview">
             <div className="preview-topline">
-              <span className="preview-label">HOW SETTLEMENT RULES WORK</span>
+              <span className="preview-label">WHAT HAPPENS TO THE MONEY?</span>
               <span className="preview-menu" aria-hidden="true">POT</span>
             </div>
             <div className="preview-rules-header">
               <span className="preview-rule-mark" aria-hidden="true">01</span>
               <div>
-                <p className="preview-overline">ONE SHARED PLAN</p>
-                <h2>Agree on the rules first.</h2>
+                <p className="preview-overline">THREE WAYS TO SET THE RULES</p>
+                <h2>Choose who can withdraw—and when.</h2>
               </div>
             </div>
             <div className="preview-rule-list">
               <div className="preview-rule">
-                <span>Goal-based</span>
-                <p>Set a target and deadline. If the goal is missed, contributors may claim refunds after the deadline.</p>
+                <span>Goal + deadline with refunds</span>
+                <p>If the goal is missed, each contributor can claim back their own contribution. Refunds are not automatic.</p>
               </div>
               <div className="preview-rule">
-                <span>Flexible</span>
-                <p>No target or automatic refund rule. The organizer may withdraw collected funds.</p>
+                <span>Crowdfund to a deadline</span>
+                <p>The goal is a target, not a cap. Contributions stay open until the deadline; the named wallet can then withdraw all funds. No refunds.</p>
+              </div>
+              <div className="preview-rule">
+                <span>Crowdfund with early withdrawals</span>
+                <p>The goal is a target, not a cap. The named wallet can withdraw available funds at any time, while contributions stay open until the deadline. No refunds.</p>
               </div>
             </div>
-            <a className="preview-create-link" href="/create">Preview your own rules <ArrowIcon /></a>
+            <a className="preview-create-link" href="/create">Build a plan preview <ArrowIcon /></a>
           </article>
-          <p className="preview-note">Prototype rules only. No live pot or payment is shown.</p>
+          <p className="preview-note">These are rule examples—not an active pot. No payment can be made.</p>
         </div>
       </section>
 
       <div className="trust-strip" aria-label="Current product status">
         <div className="trust-strip-inner">
-          <span>Early prototype</span>
-          <i />
-          <span>Base Sepolia only</span>
+          <span>Plan previews work</span>
           <i />
           <span>No live payments</span>
           <i />
-          <span>Settlement token not configured</span>
+          <span>No pots can be created yet</span>
         </div>
       </div>
 
       <section className="how-section section-wrap" id="how-it-works">
         <div className="section-heading">
-          <p className="eyebrow">Start with the plan</p>
-          <h2>Get aligned<br />before <span>money moves.</span></h2>
-          <p>The prototype helps you think through the goal and settlement terms before payments are available.</p>
+          <p className="eyebrow">What you can do today</p>
+          <h2>Try the plan.<br />Payments are <span>not live.</span></h2>
+          <p>Enter a name, goal, deadline, and minimum contribution to preview the rules. The preview is saved only if you choose to save it in this browser. You cannot publish a pot or collect money yet.</p>
         </div>
         <div className="steps-grid">
           <article className="step-card">
-            <span className="step-number">01 / PLAN</span>
+            <span className="step-number">01 / ENTER DETAILS</span>
             <div className="step-icon step-icon-create"><span>+</span></div>
-            <h3>Write down the purpose</h3>
-            <p>Give the group context and choose goal-based or flexible settlement rules.</p>
+            <h3>Describe what the group is funding</h3>
+            <p>Name the trip, gift, or fundraiser. Choose whether a missed goal means a refund or the named crowdfunding wallet can still withdraw.</p>
           </article>
           <article className="step-card">
-            <span className="step-number">02 / REVIEW</span>
+            <span className="step-number">02 / PREVIEW RULES</span>
             <div className="step-icon step-icon-share"><span>↗</span><i /><i /></div>
-            <h3>Check the terms together</h3>
-            <p>Preview the target, deadline, and minimum contribution in plain language.</p>
+            <h3>See the exact terms</h3>
+            <p>Review the goal, deadline, minimum amount per contribution, and who can withdraw or claim a refund.</p>
           </article>
           <article className="step-card">
-            <span className="step-number">03 / WHEN LIVE</span>
+            <span className="step-number">03 / NOT AVAILABLE YET</span>
             <div className="step-icon step-icon-fund"><span>$</span><i /><i /><i /></div>
-            <h3>Payments are a next step</h3>
-            <p>Onchain creation and contributions are not enabled in this prototype.</p>
+            <h3>You cannot create or fund it yet</h3>
+            <p>You can plan and preview a pot, but real payments are not available yet. Do not send money expecting this site to manage it.</p>
           </article>
         </div>
       </section>
@@ -160,9 +169,9 @@ export default function Home() {
       <section className="use-section" id="use-cases">
         <div className="section-wrap use-layout">
           <div className="use-intro">
-            <p className="eyebrow">The best plans are shared</p>
-            <h2>For the things<br />you do <span>together.</span></h2>
-            <p>Big moments, small plans, and everything your group wants to make happen.</p>
+            <p className="eyebrow">Examples to plan for</p>
+            <h2>One shared goal<br />for <span>your group.</span></h2>
+            <p>Use the preview to write down what you are collecting for and agree on the rules before anyone pays.</p>
           </div>
           <div className="use-list">
             {useCases.map((useCase) => (
@@ -181,25 +190,25 @@ export default function Home() {
 
       <section className="trust-section section-wrap" id="rules">
         <div className="trust-copy">
-          <p className="eyebrow">Rules should be visible</p>
-          <h2>Know what<br />you’re agreeing <span>to.</span></h2>
+          <p className="eyebrow">Read this before anyone contributes</p>
+          <h2>Know who can take out<br />or get back <span>the money.</span></h2>
           <p className="trust-description">
-            POT is designed around explicit settlement conditions. Review the intended behavior
-            below; the contracts are prototypes and have not been deployed.
+            These are examples to help your group agree on the rules. Real payments are not
+            available yet, so the rules do not protect money sent through this site.
           </p>
         </div>
         <div className="trust-points">
           <article>
             <span className="trust-icon">01</span>
-            <div><h3>Goal-based</h3><p>The organizer can withdraw after the goal is met. If the deadline passes below the goal, contributors can claim refunds from the contract.</p></div>
+            <div><h3>Refund if the goal is missed</h3><p>If the deadline passes below the goal, each contributor can claim their own contribution back. Refunds are not automatic.</p></div>
           </article>
           <article>
             <span className="trust-icon">02</span>
-            <div><h3>Flexible</h3><p>The organizer can withdraw contributed funds. This mode has no target or automatic refund rule.</p></div>
+            <div><h3>Crowdfund to a deadline</h3><p>The goal is a target, not a cap. Contributions stay open until the deadline, when the named wallet can withdraw all funds. Contributors cannot claim refunds.</p></div>
           </article>
           <article>
             <span className="trust-icon">03</span>
-            <div><h3>Still in development</h3><p>No factory or settlement token is configured, and no live contributions, payouts, or refunds are available.</p></div>
+            <div><h3>Withdraw as crowdfunding comes in</h3><p>The goal is a target, not a cap. The named wallet can withdraw the available balance at any time, while contributions stay open until the deadline. Contributors cannot claim refunds.</p></div>
           </article>
         </div>
       </section>
@@ -208,22 +217,22 @@ export default function Home() {
 
       <section className="closing-section section-wrap">
         <div className="closing-mark"><PotMark /></div>
-        <p className="eyebrow">Start with a plan</p>
-        <h2>Make the rules<br /><span>easy to share.</span></h2>
-        <a className="button button-dark" href="/create">Plan a pot <ArrowIcon /></a>
-        <p className="closing-note">Local draft only. No wallet request or payment is made.</p>
+        <p className="eyebrow">Try it without connecting a wallet</p>
+        <h2>Preview your group-fund<br /><span>rules.</span></h2>
+        <a className="button button-dark" href="/create">Open the plan preview <ArrowIcon /></a>
+        <p className="closing-note">This only creates a preview in your browser. It does not create a public pot or collect money.</p>
       </section>
 
       <footer className="site-footer">
         <a className="brand footer-brand" href="#top" aria-label="POT home">
           <PotMark /><span>POT</span>
         </a>
-        <p>Money moves better together.</p>
+        <p>Plan together before money moves.</p>
         <div className="footer-links">
           <a href="#how-it-works">How it works</a>
           <a href="/roadmap">Roadmap</a>
         </div>
-        <span className="footer-note">A work in progress. No live contributions yet.</span>
+        <span className="footer-note">Preview only. No pots or live payments are available.</span>
       </footer>
     </main>
   );

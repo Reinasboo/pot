@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount, useSwitchChain } from "wagmi";
 import { WalletConnection } from "@/components/wallet-connection";
+import { OrganizerTools } from "@/components/organizer-tools";
 import {
   formatTokenAmount,
   type PublicOrganizerPot,
@@ -24,11 +25,19 @@ function isOrganizerPots(value: unknown): value is PublicOrganizerPot[] {
         typeof pot.address === "string" &&
         /^0x[\da-fA-F]{40}$/.test(pot.address) &&
         typeof pot.name === "string" &&
+        typeof pot.fundingMode === "number" &&
+        Number.isInteger(pot.fundingMode) &&
+        pot.fundingMode >= 0 &&
+        pot.fundingMode <= 3 &&
         typeof pot.targetBased === "boolean" &&
         typeof pot.createdBlock === "string" &&
         /^\d+$/.test(pot.createdBlock) &&
         typeof pot.escrowBalance === "string" &&
-        /^\d+$/.test(pot.escrowBalance),
+        /^\d+$/.test(pot.escrowBalance) &&
+        typeof pot.totalContributed === "string" &&
+        /^\d+$/.test(pot.totalContributed) &&
+        typeof pot.contributionOpen === "boolean" &&
+        typeof pot.paidOut === "boolean",
     )
   );
 }
@@ -42,6 +51,10 @@ function isParticipatedPots(value: unknown): value is PublicParticipatedPot[] {
         typeof pot.address === "string" &&
         /^0x[\da-fA-F]{40}$/.test(pot.address) &&
         typeof pot.name === "string" &&
+        typeof pot.fundingMode === "number" &&
+        Number.isInteger(pot.fundingMode) &&
+        pot.fundingMode >= 0 &&
+        pot.fundingMode <= 3 &&
         typeof pot.targetBased === "boolean" &&
         typeof pot.createdBlock === "string" &&
         /^\d+$/.test(pot.createdBlock) &&
@@ -50,7 +63,11 @@ function isParticipatedPots(value: unknown): value is PublicParticipatedPot[] {
         typeof pot.contributedAmount === "string" &&
         /^\d+$/.test(pot.contributedAmount) &&
         typeof pot.escrowBalance === "string" &&
-        /^\d+$/.test(pot.escrowBalance),
+        /^\d+$/.test(pot.escrowBalance) &&
+        typeof pot.totalContributed === "string" &&
+        /^\d+$/.test(pot.totalContributed) &&
+        typeof pot.contributionOpen === "boolean" &&
+        typeof pot.paidOut === "boolean",
     )
   );
 }
@@ -64,6 +81,37 @@ function formatUsdc(amount: string): string {
   const groupedWhole = BigInt(whole).toLocaleString();
   const visibleFraction = fraction.replace(/0+$/, "");
   return `${visibleFraction ? `${groupedWhole}.${visibleFraction}` : groupedWhole} USDC`;
+}
+
+function fundingRuleLabel(fundingMode: number): string {
+  if (fundingMode === 0) return "Goal + refunds";
+  if (fundingMode === 1) return "Organizer decides";
+  if (fundingMode === 2) return "Crowdfunding · payout after deadline";
+  return "Crowdfunding · early withdrawals";
+}
+
+function downloadPotReport(pots: PublicOrganizerPot[]) {
+  const rows = [
+    ["Pot name", "Address", "Rule", "Total contributed (USDC)", "Current balance (USDC)", "Status", "Public link"],
+    ...pots.map((pot) => [
+      pot.name,
+      pot.address,
+      fundingRuleLabel(pot.fundingMode),
+      formatTokenAmount(pot.totalContributed, 6),
+      formatTokenAmount(pot.escrowBalance, 6),
+      pot.paidOut ? "Paid out" : pot.contributionOpen ? "Accepting contributions" : "Closed",
+      `${window.location.origin}/pot/${pot.address}`,
+    ]),
+  ];
+  const csv = rows.map((row) =>
+    row.map((field) => `"${field.replaceAll('"', '""')}"`).join(","),
+  ).join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "pot-organizer-report.csv";
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 async function fetchOrganizerPots(
@@ -158,14 +206,19 @@ export function OrganizerDashboard() {
     (total, pot) => total + BigInt(pot.contributedAmount),
     BigInt(0),
   );
+  const totalRaised = pots?.reduce(
+    (total, pot) => total + BigInt(pot.totalContributed),
+    BigInt(0),
+  );
+  const openPotCount = pots?.filter((pot) => pot.contributionOpen).length ?? 0;
 
   if (!isConnected || !address) {
     return (
       <div className="organizer-dashboard-content">
         <div className="organizer-dashboard-intro">
-          <p className="pot-eyebrow">ORGANIZER SPACE</p>
-          <h1>Your pots, in one place.</h1>
-          <p>Connect your wallet to view public pots you created or contributed to.</p>
+          <p className="pot-eyebrow">MY POTS</p>
+          <h1>See pots linked to your wallet.</h1>
+          <p>Connect your wallet to see public pots you started or contributed to. Connecting does not approve a payment.</p>
         </div>
         <WalletConnection />
       </div>
@@ -175,13 +228,12 @@ export function OrganizerDashboard() {
   return (
     <div className="organizer-dashboard-content">
       <div className="organizer-dashboard-intro">
-        <p className="pot-eyebrow">ORGANIZER SPACE</p>
-        <h1>Your pots, in one place.</h1>
+        <p className="pot-eyebrow">MY POTS</p>
+        <h1>Pots linked to your wallet.</h1>
         <p>
-          Showing public pots associated with <strong title={address}>{shortAddress(address)}</strong>.
-          Each list shows up to 25 indexed public pots; participation search considers the 250 latest
-          indexed contribution events. Private pots and events not yet indexed are not shown.
-          Financial state on each pot page is read directly from chain.
+          Showing public pots for <strong title={address}>{shortAddress(address)}</strong>. New
+          activity can take time to appear. We show up to 25 pots you created and your 250 most
+          recent contributions. Private pots are not shown.
         </p>
         <Link className="organizer-plan-link" href="/create">Plan a pot <span aria-hidden="true">→</span></Link>
       </div>
@@ -191,18 +243,17 @@ export function OrganizerDashboard() {
         !isError &&
         !isParticipatedLoading &&
         !isParticipatedError && (
-          <section className="organizer-dashboard-totals" aria-label="Verified dashboard totals">
+          <section className="organizer-dashboard-totals" aria-label="Current amounts for listed public pots">
             <article>
-              <span>Held in public pots you created</span>
+              <span>In public pots you started</span>
               <strong>{formatUsdc(totalEscrow?.toString() ?? "0")}</strong>
-              <small>Current USDC balances read from Base Sepolia.</small>
+              <small>Current amounts in the public pots listed below.</small>
             </article>
             <article>
-              <span>Gross contributions to listed public pots</span>
+              <span>You contributed to the listed pots</span>
               <strong>{formatUsdc(totalWalletContributions?.toString() ?? "0")}</strong>
               <small>
-                Refunded amounts are not deducted. Excludes undiscovered, private, or unindexed
-                pots.
+                Total contributed before refunds. Private pots are not included.
               </small>
             </article>
           </section>
@@ -211,7 +262,7 @@ export function OrganizerDashboard() {
       {!onSupportedNetwork ? (
         <section className="organizer-dashboard-notice" role="status">
           <h2>Switch to Base Sepolia</h2>
-          <p>Pot records are indexed on Base Sepolia. Switch networks to view this wallet’s pots.</p>
+          <p>These pots are on the Base Sepolia test network. Switch your wallet to Base Sepolia to see them.</p>
           <button
             className="wallet-action wallet-action-primary"
             disabled={isSwitching}
@@ -235,7 +286,7 @@ export function OrganizerDashboard() {
           {isLoading ? (
             <div className="organizer-list-state" role="status" aria-live="polite">
               <span className="pot-state-indicator" />
-              <p>Loading indexed pots…</p>
+              <p>Looking for public pots you started…</p>
             </div>
           ) : isError ? (
             <div className="organizer-list-state organizer-list-error" role="alert">
@@ -248,9 +299,9 @@ export function OrganizerDashboard() {
             <div className="organizer-list-state organizer-list-empty">
               <span className="pot-empty-mark" aria-hidden="true">—</span>
               <div>
-                <h3>No public pots indexed for this wallet</h3>
+                <h3>No public pots from this wallet yet</h3>
                 <p>
-                  Public pots created by this wallet appear after their creation events are indexed.
+                  A pot appears here after it has been created and added to the public list.
                 </p>
               </div>
             </div>
@@ -262,9 +313,8 @@ export function OrganizerDashboard() {
                     <span className="organizer-pot-card-copy">
                       <strong>{pot.name}</strong>
                       <span>
-                        {pot.targetBased ? "Goal-based pot" : "Flexible pot"} · Created at block{" "}
-                        {BigInt(pot.createdBlock).toLocaleString()} ·{" "}
-                        {formatUsdc(pot.escrowBalance)} currently held
+                        {fundingRuleLabel(pot.fundingMode)} · Started on
+                        Base Sepolia · {formatUsdc(pot.escrowBalance)} currently in the pot
                       </span>
                     </span>
                     <span className="organizer-pot-card-action" aria-hidden="true">Open →</span>
@@ -276,20 +326,44 @@ export function OrganizerDashboard() {
         </section>
       )}
 
+      {onSupportedNetwork && !isLoading && !isError && (
+      <section className="organizer-analytics" aria-labelledby="organizer-analytics-title">
+        <div className="organizer-analytics-heading">
+          <div>
+            <p className="pot-eyebrow">CONFIRMED ON BASE SEPOLIA</p>
+            <h2 id="organizer-analytics-title">Your organizer overview</h2>
+          </div>
+          <button type="button" onClick={() => downloadPotReport(pots ?? [])}>
+            Download CSV
+          </button>
+        </div>
+        <div className="organizer-analytics-grid">
+          <article><span>Public pots listed</span><strong>{pots?.length ?? 0}</strong><small>Up to 25 most recent public pots</small></article>
+          <article><span>Contributions received</span><strong>{formatUsdc(totalRaised?.toString() ?? "0")}</strong><small>Confirmed total across listed pots</small></article>
+          <article><span>Currently in those pots</span><strong>{formatUsdc(totalEscrow?.toString() ?? "0")}</strong><small>Current verified balances</small></article>
+          <article><span>Accepting contributions</span><strong>{openPotCount}</strong><small>Based on current contract rules</small></article>
+        </div>
+      </section>
+      )}
+
+      {onSupportedNetwork && (
+      <OrganizerTools address={address} pots={pots ?? []} />
+      )}
+
       {onSupportedNetwork && (
         <section
           className="organizer-pot-list organizer-participated-pot-list"
           aria-labelledby="participated-pot-list-title"
         >
           <div className="organizer-pot-list-heading">
-            <h2 id="participated-pot-list-title">Pots you’ve contributed to</h2>
+            <h2 id="participated-pot-list-title">Pots you contributed to</h2>
             <span>Base Sepolia</span>
           </div>
 
           {isParticipatedLoading ? (
             <div className="organizer-list-state" role="status" aria-live="polite">
               <span className="pot-state-indicator" />
-              <p>Loading indexed contributions…</p>
+              <p>Checking your recent contributions…</p>
             </div>
           ) : isParticipatedError ? (
             <div className="organizer-list-state organizer-list-error" role="alert">
@@ -306,10 +380,10 @@ export function OrganizerDashboard() {
             <div className="organizer-list-state organizer-list-empty">
               <span className="pot-empty-mark" aria-hidden="true">—</span>
               <div>
-                <h3>No confirmed public contributions indexed</h3>
+                <h3>No public contributions found yet</h3>
                 <p>
-                  Pots you contribute to will appear after the confirmed contribution events are
-                  indexed.
+                  This list includes public pots and recent confirmed contributions. New
+                  contributions may take time to appear.
                 </p>
               </div>
             </div>
@@ -321,10 +395,9 @@ export function OrganizerDashboard() {
                     <span className="organizer-pot-card-copy">
                       <strong>{pot.name}</strong>
                       <span>
-                        {pot.targetBased ? "Goal-based pot" : "Flexible pot"} · Last indexed
-                        contribution at block {BigInt(pot.lastContributionBlock).toLocaleString()}
-                        · {formatUsdc(pot.contributedAmount)} gross contributed ·{" "}
-                        {formatUsdc(pot.escrowBalance)} currently held
+                        {fundingRuleLabel(pot.fundingMode)} · You
+                        contributed {formatUsdc(pot.contributedAmount)} in total;{" "}
+                        {formatUsdc(pot.escrowBalance)} remains in the pot
                       </span>
                     </span>
                     <span className="organizer-pot-card-action" aria-hidden="true">Open →</span>
@@ -337,8 +410,8 @@ export function OrganizerDashboard() {
       )}
 
       <div className="organizer-dashboard-account">
-        <span>Wallet connected</span>
-        <Link href="/connect">Manage connection</Link>
+        <span>Wallet: {shortAddress(address)}</span>
+        <Link href="/connect">Change wallet</Link>
       </div>
     </div>
   );

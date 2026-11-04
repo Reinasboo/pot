@@ -16,9 +16,14 @@ export async function POST(request: Request): Promise<Response> {
       !("walletAddress" in body) ||
       !("potAddress" in body) ||
       !("description" in body) ||
+      !("isPublic" in body) ||
+      !("accessKeyHash" in body) ||
       !isMetadataAddress(body.walletAddress) ||
       !isMetadataAddress(body.potAddress) ||
-      typeof body.description !== "string"
+      typeof body.description !== "string" ||
+      typeof body.isPublic !== "boolean" ||
+      (body.accessKeyHash !== null &&
+        (typeof body.accessKeyHash !== "string" || !/^[0-9a-f]{64}$/.test(body.accessKeyHash)))
     ) {
       throw new PotMetadataError(
         "A valid wallet, pot address, and description are required.",
@@ -31,6 +36,8 @@ export async function POST(request: Request): Promise<Response> {
       body.potAddress,
       origin,
       body.description,
+      body.isPublic,
+      body.accessKeyHash,
     );
     return Response.json(challenge, {
       headers: { "cache-control": "no-store" },

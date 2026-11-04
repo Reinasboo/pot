@@ -419,32 +419,32 @@ export function PotContribution({ pot, onConfirmed }: Props) {
   }
 
   const disabledReason = !factoryAddress
-    ? "Contributing is disabled until the deployed Base Sepolia factory is configured."
+    ? "You cannot contribute yet. POT has not deployed the contract that holds pot money."
     : !isConnected
-      ? "Connect a wallet to contribute."
+      ? "Connect your wallet to contribute."
       : !onSupportedNetwork
-        ? "Switch your wallet to Base Sepolia before contributing."
+        ? "Switch your wallet to Base Sepolia testnet before contributing."
         : !builderDataSuffix
-          ? "Contributing is disabled until a Base Builder Code is configured."
+          ? "Contributions are turned off until this app is fully set up."
           : hasReadError || balanceQuery.isError || allowanceQuery.isError
-            ? "Could not verify the pot, USDC balance, or allowance on Base Sepolia. Refresh and try again."
+            ? "We couldn’t check this pot or your test USDC balance. Refresh the page and try again."
             : isVerifying || !chainReadsReady
-              ? "Verifying the pot and settlement token on Base Sepolia…"
+              ? "Checking this pot and your test USDC…"
               : registrationQuery.data !== true
-                ? "This address is not a pot registered by the configured factory."
+                ? "This pot was not created by the configured POT contract."
                 : !usesVerifiedUsdc
-                  ? "Contributing is disabled because this pot does not use Circle Base Sepolia USDC."
+                  ? "This pot does not use the verified USDC test token on Base Sepolia."
                   : contributionOpenQuery.data !== true
-                    ? "This pot is not accepting contributions."
+                    ? "This pot is closed to contributions. It may have reached its goal or passed its deadline."
                     : balanceQuery.data === undefined || allowanceQuery.data === undefined
                       ? "Checking your USDC balance and approval…"
-                      : "Only confirmed contributions are counted in the pot total.";
+                      : "Your contribution will count after Base Sepolia confirms it.";
 
   const balanceLabel =
     !isConnected
       ? "Connect to see your balance"
       : balanceQuery.data === undefined
-      ? "Checking USDC balance…"
+      ? "Checking your USDC…"
       : `${formatUsdcBaseUnits(balanceQuery.data)} USDC available`;
   const phaseLabel =
     phase === "approving"
@@ -533,8 +533,8 @@ export function PotContribution({ pot, onConfirmed }: Props) {
         )}
         <p className="pot-contribution-note">{disabledReason}</p>
         <p className="pot-contribution-approval-note">
-          If needed, you’ll approve only this contribution amount. POT never requests unlimited
-          USDC approval.
+          Your wallet may ask you to approve this exact amount before contributing. POT never asks
+          for permission to spend unlimited USDC.
         </p>
         <button
           className="pot-contribute-button"

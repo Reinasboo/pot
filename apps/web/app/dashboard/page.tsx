@@ -2,8 +2,8 @@ import Link from "next/link";
 import { OrganizerDashboard } from "@/components/organizer-dashboard";
 
 export const metadata = {
-  title: "Your pots",
-  description: "View public pots associated with your wallet on Base Sepolia.",
+  title: "My pots",
+  description: "See public pots you created or contributed to on Base Sepolia.",
 };
 
 export default function DashboardPage() {
@@ -18,7 +18,10 @@ export default function DashboardPage() {
           </span>
           <span>POT</span>
         </Link>
-        <span className="pot-network-label"><i /> Base Sepolia</span>
+        <nav className="pot-page-nav" aria-label="Main navigation">
+          <Link href="/discover">Discover pots</Link>
+          <span className="pot-network-label"><i /> Base Sepolia</span>
+        </nav>
       </header>
       <OrganizerDashboard />
       <footer className="pot-page-footer">

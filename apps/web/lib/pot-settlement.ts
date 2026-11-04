@@ -1,6 +1,6 @@
 export type PotSettlementState = {
   walletAddress: string;
-  organizer: string;
+  payoutRecipient: string;
   paidOut: boolean;
   payoutEligible: boolean;
   refundEligible: boolean;
@@ -8,9 +8,9 @@ export type PotSettlementState = {
   refundClaimed: boolean;
 };
 
-export function canOrganizerPayout(state: PotSettlementState): boolean {
+export function canAuthorizedPayout(state: PotSettlementState): boolean {
   return (
-    state.walletAddress.toLowerCase() === state.organizer.toLowerCase() &&
+    state.walletAddress.toLowerCase() === state.payoutRecipient.toLowerCase() &&
     !state.paidOut &&
     state.payoutEligible
   );

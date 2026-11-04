@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { canClaimPotRefund, canOrganizerPayout } from "./pot-settlement";
+import { canAuthorizedPayout, canClaimPotRefund } from "./pot-settlement";
 
-const organizer = "0x1111111111111111111111111111111111111111";
+const payoutRecipient = "0x1111111111111111111111111111111111111111";
 const contributor = "0x2222222222222222222222222222222222222222";
 const baseState = {
-  walletAddress: organizer,
-  organizer,
+  walletAddress: payoutRecipient,
+  payoutRecipient,
   paidOut: false,
   payoutEligible: true,
   refundEligible: false,
@@ -14,16 +14,16 @@ const baseState = {
 };
 
 describe("payout eligibility", () => {
-  it("allows only the organizer when payout is eligible and not completed", () => {
-    expect(canOrganizerPayout(baseState)).toBe(true);
-    expect(canOrganizerPayout({ ...baseState, walletAddress: contributor })).toBe(false);
-    expect(canOrganizerPayout({ ...baseState, payoutEligible: false })).toBe(false);
-    expect(canOrganizerPayout({ ...baseState, paidOut: true })).toBe(false);
+  it("allows only the approved recipient when payout is eligible and not completed", () => {
+    expect(canAuthorizedPayout(baseState)).toBe(true);
+    expect(canAuthorizedPayout({ ...baseState, walletAddress: contributor })).toBe(false);
+    expect(canAuthorizedPayout({ ...baseState, payoutEligible: false })).toBe(false);
+    expect(canAuthorizedPayout({ ...baseState, paidOut: true })).toBe(false);
   });
 
-  it("compares wallet and organizer addresses case-insensitively", () => {
+  it("compares wallet and payout recipient addresses case-insensitively", () => {
     expect(
-      canOrganizerPayout({
+      canAuthorizedPayout({
         ...baseState,
         walletAddress: "0X1111111111111111111111111111111111111111",
       }),

@@ -12,7 +12,7 @@ function describeWalletError(error: Error | null): string | null {
     return "The wallet request was declined. You can try again whenever you are ready.";
   }
 
-  return `Wallet connection failed: ${error.message}`;
+  return "Could not connect to that wallet. Make sure it is unlocked, then try again.";
 }
 
 function shortenAddress(address: string): string {
@@ -53,10 +53,10 @@ export function WalletConnection() {
           <span className="wallet-state-dot" />
           <p className="wallet-kicker">WALLET CONNECTED</p>
         </div>
-        <h2 id="wallet-connected-title">You’re connected.</h2>
+        <h2 id="wallet-connected-title">Wallet connected.</h2>
         <p className="wallet-panel-description">
-          Your wallet is your identity in POT. Connecting does not send a transaction or move
-          funds.
+          POT can see your public address and use it to look up public pots. Connecting does not
+          let POT spend or move your money.
         </p>
         <dl className="wallet-details">
           <div>
@@ -64,13 +64,13 @@ export function WalletConnection() {
             <dd title={address}>{shortenAddress(address)}</dd>
           </div>
           <div>
-            <dt>Wallet</dt>
+            <dt>Wallet app</dt>
             <dd>{connector?.name ?? "Connected wallet"}</dd>
           </div>
           <div>
             <dt>Network</dt>
             <dd className={wrongNetwork ? "wallet-network-warning" : ""}>
-              {wrongNetwork ? "Unsupported network" : supportedChain.name}
+              {wrongNetwork ? `Not on ${supportedChain.name}` : supportedChain.name}
             </dd>
           </div>
         </dl>
@@ -90,10 +90,10 @@ export function WalletConnection() {
         {!wrongNetwork && (
           <>
             <p className="wallet-network-ready">
-              <span /> Connected to the supported test network
+              <span /> Ready to view pots on the test network
             </p>
             <Link className="wallet-action wallet-action-primary wallet-dashboard-link" href="/dashboard">
-              View your public pots
+              See pots linked to this wallet
             </Link>
           </>
         )}
@@ -120,10 +120,10 @@ export function WalletConnection() {
         <span className="wallet-state-dot" />
         <p className="wallet-kicker">WALLET ONBOARDING</p>
       </div>
-      <h2 id="wallet-connect-title">Connect your wallet.</h2>
+      <h2 id="wallet-connect-title">Choose your wallet.</h2>
       <p className="wallet-panel-description">
-        Choose a wallet to continue. POT will only request a connection here—there are no
-        transactions or payment approvals in this step.
+        Choose your wallet app to continue. This lets POT read your public address; it does not
+        approve a payment or give POT permission to move money.
       </p>
       <div className="wallet-options">
         {connectors.map((walletConnector) => (
@@ -142,7 +142,7 @@ export function WalletConnection() {
           </button>
         ))}
       </div>
-      {isConnecting && <p className="wallet-pending" role="status">Waiting for wallet approval…</p>}
+      {isConnecting && <p className="wallet-pending" role="status">Approve the connection in your wallet…</p>}
       {errorMessage && (
         <p className="wallet-error" role="alert">
           {errorMessage}
@@ -151,9 +151,9 @@ export function WalletConnection() {
       <div className="wallet-network-note">
         <span className="wallet-network-icon">◎</span>
         <p>
-          <strong>Base Sepolia</strong>
+          <strong>Base Sepolia test network</strong>
           <br />
-          Test network · Chain ID {supportedChain.id}
+          Test network · test tokens have no real-world value
         </p>
       </div>
     </section>

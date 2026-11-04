@@ -19,12 +19,17 @@ export async function POST(request: Request): Promise<Response> {
       !("nonce" in body) ||
       !("signature" in body) ||
       !("description" in body) ||
+      !("isPublic" in body) ||
+      !("accessKey" in body) ||
       !isMetadataAddress(body.walletAddress) ||
       !isMetadataAddress(body.potAddress) ||
       typeof body.nonce !== "string" ||
       !/^[0-9a-f]{32}$/.test(body.nonce) ||
       !isMetadataSignature(body.signature) ||
-      typeof body.description !== "string"
+      typeof body.description !== "string" ||
+      typeof body.isPublic !== "boolean" ||
+      (body.accessKey !== null &&
+        (typeof body.accessKey !== "string" || !/^[0-9a-f]{64}$/.test(body.accessKey)))
     ) {
       throw new PotMetadataError("The pot metadata update is invalid.", 400);
     }
@@ -35,6 +40,8 @@ export async function POST(request: Request): Promise<Response> {
       nonce: body.nonce,
       signature: body.signature,
       description: body.description,
+      isPublic: body.isPublic,
+      accessKey: body.accessKey,
       origin,
     });
     return Response.json(
@@ -54,7 +61,7 @@ export async function POST(request: Request): Promise<Response> {
       error instanceof Error ? error.name : "Unknown error",
     );
     return Response.json(
-      { error: "Could not save this pot’s public description." },
+      { error: "Could not save this pot’s settings." },
       { status: 500, headers: { "cache-control": "no-store" } },
     );
   }

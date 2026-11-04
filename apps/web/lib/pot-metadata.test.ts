@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 import { getAddress } from "viem";
 import {
   createPotMetadataChallenge,
@@ -27,6 +28,16 @@ const walletAddress = getAddress("0x2222222222222222222222222222222222222222");
 const potAddress = getAddress("0x1111111111111111111111111111111111111111");
 const nonce = "0123456789abcdef0123456789abcdef";
 const serviceRoleKey = "server-only-test-key";
+
+function getPublicMetadataStatement(description: string): string {
+  return `Authorize updating pot visibility and description for pot ${potAddress}: ` +
+    JSON.stringify({ description, visibility: "public", accessKeyHash: null });
+}
+
+function getPrivateMetadataStatement(description: string, accessKeyHash: string): string {
+  return `Authorize updating pot visibility and description for pot ${potAddress}: ` +
+    JSON.stringify({ description, visibility: "private", accessKeyHash });
+}
 
 function configureEnvironment() {
   vi.stubEnv("BASE_SEPOLIA_RPC_URL", "https://sepolia.base.org");
@@ -137,8 +148,8 @@ describe("pot metadata authorization", () => {
         consumed = true;
         return Response.json([{ nonce }]);
       }
-      if (url.pathname.endsWith("/pots") && init?.method === "PATCH") {
-        return Response.json([{ address: potAddress.toLowerCase() }]);
+      if (url.pathname.endsWith("/rpc/save_pot_visibility")) {
+        return Response.json(true);
       }
       if (url.pathname.endsWith("/pot_metadata_nonces")) {
         if (consumed) return Response.json([]);
@@ -147,12 +158,13 @@ describe("pot metadata authorization", () => {
           wallet_address: walletAddress.toLowerCase(),
           pot_address: potAddress.toLowerCase(),
           origin: "https://pot.example",
-          message: `Authorize publishing this public description for pot ${potAddress}: "A weekend away together."\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
+          message: `${getPublicMetadataStatement("A weekend away together.")}\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
           expires_at: new Date(Date.now() + 60_000).toISOString(),
         }]);
       }
       return Response.json([{ address: potAddress.toLowerCase() }]);
     });
+
     vi.stubGlobal("fetch", fetchMock);
 
     await publishPotDescription({
@@ -163,6 +175,7 @@ describe("pot metadata authorization", () => {
       description: "  A weekend away together.  ",
       origin: "https://pot.example",
     });
+
     await expect(
       publishPotDescription({
         walletAddress,
@@ -177,7 +190,7 @@ describe("pot metadata authorization", () => {
     expect(mocks.verifyMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         address: walletAddress,
-        message: `Authorize publishing this public description for pot ${potAddress}: "A weekend away together."\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
+        message: `${getPublicMetadataStatement("A weekend away together.")}\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
       }),
     );
     const consumeRequest = fetchMock.mock.calls.find(([input, init]) =>
@@ -186,14 +199,78 @@ describe("pot metadata authorization", () => {
     );
     expect(consumeRequest).toBeDefined();
     const updateRequest = fetchMock.mock.calls.find(([input, init]) =>
-      new URL(input.toString()).pathname.endsWith("/pots") && init?.method === "PATCH",
+      new URL(input.toString()).pathname.endsWith("/rpc/save_pot_visibility") &&
+      init?.method === "POST",
     );
     expect(JSON.parse(String(updateRequest?.[1]?.body))).toEqual({
-      description: "A weekend away together.",
+      p_chain_id: 84532,
+      p_pot_address: potAddress.toLowerCase(),
+      p_organizer: walletAddress.toLowerCase(),
+      p_description: "A weekend away together.",
+      p_is_public: true,
+      p_access_key_hash: null,
     });
     expect(new Headers(updateRequest?.[1]?.headers).get("authorization")).toBe(
       `Bearer ${serviceRoleKey}`,
     );
+  });
+
+  it("stores only the hash of a private link key and binds visibility to the wallet signature", async () => {
+    configureEnvironment();
+    mocks.verifyMessage.mockResolvedValue(true);
+    const accessKey = "a".repeat(64);
+    const accessKeyHash = createHash("sha256").update(accessKey).digest("hex");
+    const message = `${getPrivateMetadataStatement("A private plan.", accessKeyHash)}\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(input.toString());
+      if (url.pathname.endsWith("/rpc/issue_pot_metadata_nonce")) return Response.json(true);
+      if (url.pathname.endsWith("/rpc/save_pot_visibility")) return Response.json(true);
+      if (url.pathname.endsWith("/pot_metadata_nonces") && init?.method === "PATCH") {
+        return Response.json([{ nonce }]);
+      }
+      if (url.pathname.endsWith("/pot_metadata_nonces")) {
+        return Response.json([{
+          nonce,
+          wallet_address: walletAddress.toLowerCase(),
+          pot_address: potAddress.toLowerCase(),
+          origin: "https://pot.example",
+          message,
+          expires_at: new Date(Date.now() + 60_000).toISOString(),
+        }]);
+      }
+      return Response.json([{ address: potAddress.toLowerCase() }]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const challenge = await createPotMetadataChallenge(
+      walletAddress,
+      potAddress,
+      "https://pot.example",
+      "A private plan.",
+      false,
+      accessKeyHash,
+    );
+    expect(challenge.message).toContain(accessKeyHash);
+    expect(challenge.message).not.toContain(accessKey);
+
+    await publishPotDescription({
+      walletAddress,
+      potAddress,
+      nonce,
+      signature: `0x${"11".repeat(65)}`,
+      description: "A private plan.",
+      isPublic: false,
+      accessKey,
+      origin: "https://pot.example",
+    });
+
+    const saveRequest = fetchMock.mock.calls.find(([input]) =>
+      new URL(input.toString()).pathname.endsWith("/rpc/save_pot_visibility"),
+    );
+    expect(JSON.parse(String(saveRequest?.[1]?.body))).toMatchObject({
+      p_is_public: false,
+      p_access_key_hash: accessKeyHash,
+    });
   });
 
   it("does not consume or write metadata when the signature is invalid", async () => {
@@ -206,7 +283,7 @@ describe("pot metadata authorization", () => {
         wallet_address: walletAddress.toLowerCase(),
         pot_address: potAddress.toLowerCase(),
         origin: "https://pot.example",
-        message: `Authorize publishing this public description for pot ${potAddress}: "Expired update"\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
+        message: `${getPublicMetadataStatement("Expired update")}\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
         expires_at: new Date(Date.now() + 60_000).toISOString(),
       }]);
     });
@@ -246,7 +323,7 @@ describe("pot metadata authorization", () => {
         wallet_address: walletAddress.toLowerCase(),
         pot_address: potAddress.toLowerCase(),
         origin: "https://pot.example",
-        message: `Authorize publishing this public description for pot ${potAddress}: "Signed text"\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
+        message: `${getPublicMetadataStatement("Signed text")}\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
         expires_at: new Date(Date.now() + 60_000).toISOString(),
       }]);
     });
@@ -275,7 +352,7 @@ describe("pot metadata authorization", () => {
         wallet_address: walletAddress.toLowerCase(),
         pot_address: potAddress.toLowerCase(),
         origin: "https://pot.example",
-        message: `Authorize publishing this public description for pot ${potAddress}:\n"Not indexed yet"\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
+        message: `${getPublicMetadataStatement("Not indexed yet")}\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
         expires_at: new Date(Date.now() - 60_000).toISOString(),
       }]);
     });
@@ -305,7 +382,7 @@ describe("pot metadata authorization", () => {
           wallet_address: walletAddress.toLowerCase(),
           pot_address: potAddress.toLowerCase(),
           origin: "https://pot.example",
-          message: `Authorize publishing this public description for pot ${potAddress}: "Not indexed yet"\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
+          message: `${getPublicMetadataStatement("Not indexed yet")}\n\nURI: https://pot.example/pot/${potAddress.toLowerCase()}`,
           expires_at: new Date(Date.now() + 60_000).toISOString(),
         }]);
       }

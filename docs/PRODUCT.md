@@ -12,16 +12,18 @@ visible before contribution.
 
 ## Initial audience
 
-The first audience is friend groups and community organizers, with use cases such as group gifts,
-trips, events, and shared purchases. Families, creators, event organizers, and small businesses
-are later audiences; the MVP is not a business banking product.
+The first audience is friend groups, community organizers, and people raising money for a shared
+cause, with use cases such as group gifts, trips, events, and crowdfunding. Families, creators,
+event organizers, and small businesses are later audiences; the MVP is not a business banking
+product.
 
 ## MVP boundary
 
 The MVP is one verifiable user journey:
 
 1. Connect a compatible wallet on Base Sepolia.
-2. Create a pot with explicit target, deadline, and settlement rules.
+2. Create a goal-based pot with refunds for a missed goal, or a crowdfunding pot with a named
+   payout wallet and clear withdrawal timing.
 3. Share a stable public pot URL that works without wallet connection.
 4. Contribute USDC and distinguish pending, confirmed, and failed transactions.
 5. Show chain-verified funding progress and contribution history.
@@ -52,14 +54,23 @@ not show private pots or undiscovered/unindexed creations. Create, contribution,
 flows are wired but gated. The contracts and indexer have not been deployed or run against a
 configured project, and there is no live contribution or settlement activity. Wallet connection
 has not yet been verified end-to-end with a separate installed wallet. Public pot pages include
-copy-link and native share actions.
+copy-link and native share actions. Organizers can mark an indexed pot public or private; private
+POT pages require a designated link key and are excluded from public listings. The key is carried
+in the URL fragment and only its hash is stored by POT. This is link-based access to the app page,
+not onchain privacy: pot addresses, balances, and transactions remain publicly visible on Base.
 The `/create` screen validates configuration, previews the selected rules locally, and includes a
 factory submission flow that remains gated until its deployment and Builder Code prerequisites
 are configured. Organizers may explicitly save and restore an unsubmitted draft in the same
 browser; no draft data is uploaded or sent onchain. Drafts can also include an optional purpose
 description for contributors, but that purpose is not published. The form indicates when a local
 draft exists and asks for confirmation before replacing or removing saved values.
-After a pot is created and appears in the public index, its connected organizer may separately
-publish a description on the public pot page by consenting and signing a one-time message. This
-does not submit a transaction; it updates display metadata in Supabase. The metadata migration and
-live Supabase/factory setup have not been applied or verified.
+After a pot is created and appears in the index, its connected organizer chooses who can open its
+POT page and may publish a description by consenting and signing a one-time message. This does not
+submit a transaction; it updates display metadata and private-link access in Supabase. The privacy
+migration and live Supabase/factory setup have not been applied or verified.
+
+The contract prototype now separates goal-based refunds from two crowdfunding rules: payout to a
+named wallet after the deadline, or repeat withdrawals by that wallet while contributions remain
+open. Crowdfunding goals are soft targets; goal-based pots still stop at their goal. New
+organizer-decides pots are not offered. Crowdfunding cannot be created until a compatible factory
+is deployed and verified; the current frontend still does not collect live payments.

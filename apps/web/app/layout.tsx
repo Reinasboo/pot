@@ -6,6 +6,7 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://potonbase.vercel.app"),
   title: {
     default: "POT — Money moves better together",
     template: "%s | POT",

@@ -4,15 +4,24 @@ import { useState } from "react";
 
 type Props = {
   name: string;
+  address: string;
+  isPublic: boolean;
+  accessKey: string | null;
 };
 
-export function SharePotLink({ name }: Props) {
+export function SharePotLink({ name, address, isPublic, accessKey }: Props) {
   const [message, setMessage] = useState("");
+
+  function getSharedUrl(): string {
+    return isPublic || !accessKey
+      ? `${window.location.origin}/pot/${address}`
+      : `${window.location.origin}/pot/${address}#access=${accessKey}`;
+  }
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(window.location.href);
-      setMessage("Pot link copied.");
+      await navigator.clipboard.writeText(getSharedUrl());
+      setMessage(isPublic ? "Pot link copied." : "Private link copied. Anyone with it can open this pot in POT.");
     } catch {
       setMessage("Copy isn’t available here. Select and copy the pot URL from your browser.");
     }
@@ -27,7 +36,7 @@ export function SharePotLink({ name }: Props) {
       await navigator.share({
         title: name,
         text: `Take a look at this shared pot: ${name}`,
-        url: window.location.href,
+        url: getSharedUrl(),
       });
       setMessage("Share sheet opened.");
     } catch (error) {
@@ -38,12 +47,26 @@ export function SharePotLink({ name }: Props) {
 
   return (
     <div className="pot-share-actions" aria-label="Share this pot">
-      <button className="pot-share-button" type="button" onClick={() => void copyLink()}>
-        Copy pot link
-      </button>
-      <button className="pot-share-button pot-share-button-secondary" type="button" onClick={() => void shareLink()}>
-        Share…
-      </button>
+      {(isPublic || accessKey) && (
+        <>
+          <button className="pot-share-button" type="button" onClick={() => void copyLink()}>
+            {isPublic ? "Copy pot link" : "Copy private link"}
+          </button>
+          <button className="pot-share-button pot-share-button-secondary" type="button" onClick={() => void shareLink()}>
+            Share…
+          </button>
+          {isPublic && (
+            <a
+              className="pot-share-card-link"
+              href={`/pot/${address}/opengraph-image`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Preview share card
+            </a>
+          )}
+        </>
+      )}
       <span className="pot-share-feedback" aria-live="polite">{message}</span>
     </div>
   );
