@@ -24,6 +24,62 @@ test("wallet onboarding explains safe Base Sepolia test setup", async ({ page })
   );
 });
 
+test("connects an injected wallet, recovers from wrong network, and disconnects", async ({
+  page,
+}) => {
+  const walletAddress = "0x1234567890123456789012345678901234567890";
+  await page.addInitScript(
+    ({ address, initialChainId }) => {
+      let chainId = initialChainId;
+      let authorized = false;
+      const listeners = new Map<string, Set<(value: string) => void>>();
+
+      const provider = {
+        isMetaMask: true,
+        request: async ({ method, params }: { method: string; params?: unknown[] }) => {
+          if (method === "eth_chainId") return chainId;
+          if (method === "eth_accounts") return authorized ? [address] : [];
+          if (method === "eth_requestAccounts") {
+            authorized = true;
+            return [address];
+          }
+          if (method === "wallet_switchEthereumChain") {
+            const requestedChain = params?.[0] as { chainId?: string } | undefined;
+            if (!requestedChain?.chainId) throw new Error("Missing requested chain ID");
+            chainId = requestedChain.chainId;
+            for (const listener of listeners.get("chainChanged") ?? []) listener(chainId);
+            return null;
+          }
+          throw new Error(`Unsupported mocked wallet request: ${method}`);
+        },
+        on: (event: string, listener: (value: string) => void) => {
+          const eventListeners = listeners.get(event) ?? new Set();
+          eventListeners.add(listener);
+          listeners.set(event, eventListeners);
+        },
+        removeListener: (event: string, listener: (value: string) => void) => {
+          listeners.get(event)?.delete(listener);
+        },
+      };
+
+      Object.defineProperty(window, "ethereum", { configurable: true, value: provider });
+    },
+    { address: walletAddress, initialChainId: "0x1" },
+  );
+  await page.goto("/connect");
+
+  await page.getByRole("button", { name: /Injected/ }).click();
+  await expect(page.getByRole("heading", { name: "You’re connected." })).toBeVisible();
+  await expect(page.locator(".wallet-details")).toContainText("Unsupported network");
+
+  await page.getByRole("button", { name: "Switch to Base Sepolia" }).click();
+  await expect(page.locator(".wallet-details")).toContainText("Base Sepolia");
+  await expect(page.getByText("Connected to the supported test network")).toBeVisible();
+
+  await page.getByRole("button", { name: "Disconnect wallet" }).click();
+  await expect(page.getByRole("heading", { name: "Connect your wallet." })).toBeVisible();
+});
+
 test("validates goal rules and previews a flexible pot", async ({ page }) => {
   await page.goto("/create");
   await page.getByRole("button", { name: "Preview pot rules" }).click();

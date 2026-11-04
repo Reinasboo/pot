@@ -72,3 +72,7 @@ The following are still required before deploying or sending a transaction:
 
 The wallet keys remain inside the wallet provider. The app only needs wallet connection approval
 and transaction confirmation from the user when transaction flows are eventually enabled.
+
+Playwright also tests the connect, unsupported-network recovery, and disconnect screens using a
+mock injected wallet. This is UI coverage only and does not prove a real wallet provider works or
+send a blockchain transaction.

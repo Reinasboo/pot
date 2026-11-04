@@ -42,7 +42,9 @@ Completed:
 - Added Vitest coverage for pot amount parsing, exact decimal comparisons, Unicode limits, and
   target/flexible settlement validation.
 - Added Playwright coverage for landing-to-planning navigation, invalid/valid rule previews,
-  flexible settlement, confirmed local-draft restore/clear, and mobile overflow.
+  flexible settlement, confirmed local-draft restore/clear, mobile overflow, and an injected-wallet
+  connect/wrong-network recovery/disconnect flow. The browser wallet is mocked; no transaction is
+  sent.
 - Verified Circle's official Base Sepolia USDC address against the live chain (84532, contract
   code present, USDC, 6 decimals); documented test-only organizer/contributor wallet setup and
   added a read-only balance preflight script.
