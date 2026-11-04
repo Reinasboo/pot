@@ -40,9 +40,21 @@ the browser.
 Run from `apps\web`:
 
 ```powershell
+npm test
 npm run lint
 npm run build
 ```
+
+The web unit tests cover pot setup validation. Contract formatting and Foundry tests run from
+`contracts`:
+
+```powershell
+npm ci
+npm run fmt:check
+npm test
+```
+
+Both sets of checks run in GitHub Actions for pushes to `main`, pull requests, and manual runs.
 
 ## Product and engineering notes
 

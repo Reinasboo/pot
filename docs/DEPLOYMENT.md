@@ -18,9 +18,21 @@ requires a compatible wallet provider in the browser to establish a wallet conne
 From `apps\web`:
 
 ```powershell
+npm test
 npm run lint
 npm run build
 ```
+
+Contract checks run from `contracts`:
+
+```powershell
+npm ci
+npm run fmt:check
+npm test
+```
+
+GitHub Actions runs the web and contract checks on pushes to `main`, pull requests, and manual
+workflow dispatches.
 
 ## Base Sepolia
 
