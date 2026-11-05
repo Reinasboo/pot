@@ -1,36 +1,43 @@
-import type { Metadata } from "next";
+import { Brand } from "@/components/brand";
 import Link from "next/link";
 import { PublicOrganizerPage } from "@/components/public-organizer-page";
+import { pageMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
-  title: "Organizer | POT",
-  description: "See public group funds and collections from a POT organizer.",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ wallet: string }>;
+}) {
+  return pageMetadata({
+    title: "Organizer collections",
+    description:
+      "Shared goals, brought together. Explore this organizer’s public pots and collections on POT.",
+    path: `/organizer/${encodeURIComponent((await params).wallet)}`,
+  });
+}
 
 export const instant = false;
 
 export default async function OrganizerPage({
   params,
-}: { params: Promise<{ wallet: string }> }) {
+}: {
+  params: Promise<{ wallet: string }>;
+}) {
   const { wallet } = await params;
   return (
     <main className="pot-page-shell">
       <header className="pot-page-header">
-        <Link className="brand" href="/" aria-label="POT home">
-          <span className="brand-mark" aria-hidden="true"><span /><span /><span /></span>
-          <span>POT</span>
-        </Link>
+        <Brand className="brand" href="/" />
         <nav className="pot-page-nav" aria-label="Main navigation">
           <Link href="/discover">Discover pots</Link>
-          <span className="pot-network-label"><i /> Base Sepolia</span>
+          <span className="pot-network-label">
+            <i /> Base Sepolia
+          </span>
         </nav>
       </header>
       <PublicOrganizerPage wallet={wallet} />
       <footer className="pot-page-footer">
-        <Link className="brand footer-brand" href="/" aria-label="POT home">
-          <span className="brand-mark" aria-hidden="true"><span /><span /><span /></span>
-          <span>POT</span>
-        </Link>
+        <Brand className="brand footer-brand" href="/" />
         <span>Shared plans, clear rules.</span>
       </footer>
     </main>

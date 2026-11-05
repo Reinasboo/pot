@@ -1,5 +1,14 @@
 # POT
 
+For this checkout's current local features, design changes, checks, and deployment path, see
+[Local build and verification](docs/LOCAL_BUILD.md). Start the app from `apps/web` with
+`npm ci` and `npm run dev`. Use Node.js 24 LTS to match CI.
+
+Brand guidance is in [BRAND.md](docs/BRAND.md), social previews in
+[SOCIAL_SHARING.md](docs/SOCIAL_SHARING.md), and the proposed network token rationale in
+[TOKEN_VISION.md](docs/TOKEN_VISION.md). The submission assets are in [deliverables](deliverables),
+with editable film and screenshot source in [apps/film](apps/film).
+
 POT is a group-payment product in development. It is designed to help people create shared
 fundraising pots, invite contributors, track confirmed USDC contributions, and settle funds under
 clear rules on Base.

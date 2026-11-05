@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   compareAmounts,
+  formatPotPlan,
   getCrowdfundingCreateArguments,
   getPotFactoryCreateArguments,
   isPositiveAmount,
@@ -27,7 +28,9 @@ describe("isPositiveAmount", () => {
     expect(isPositiveAmount("0.000001")).toBe(true);
     expect(isPositiveAmount("900719925474099300.123456")).toBe(true);
     expect(isPositiveAmount(formatUsdcBaseUnits(uint256Max))).toBe(true);
-    expect(isPositiveAmount(formatUsdcBaseUnits(uint256Max + BigInt(1)))).toBe(false);
+    expect(isPositiveAmount(formatUsdcBaseUnits(uint256Max + BigInt(1)))).toBe(
+      false,
+    );
   });
 
   it.each([
@@ -40,17 +43,16 @@ describe("isPositiveAmount", () => {
     "1e2",
     "1.0000001",
     "9".repeat(78),
-  ])(
-    "rejects invalid or non-positive amount %s",
-    (amount) => {
-      expect(isPositiveAmount(amount)).toBe(false);
-    },
-  );
+  ])("rejects invalid or non-positive amount %s", (amount) => {
+    expect(isPositiveAmount(amount)).toBe(false);
+  });
 });
 
 describe("compareAmounts", () => {
   it("compares whole and fractional values without converting to floating point", () => {
-    expect(compareAmounts("900719925474099300", "900719925474099299.99")).toBe(1);
+    expect(compareAmounts("900719925474099300", "900719925474099299.99")).toBe(
+      1,
+    );
     expect(compareAmounts("1.020", "1.02")).toBe(0);
     expect(compareAmounts("0.9", "1")).toBe(-1);
     expect(compareAmounts("12.001", "12.01")).toBe(-1);
@@ -58,29 +60,58 @@ describe("compareAmounts", () => {
 });
 
 describe("validatePotDraft", () => {
+  it("rejects the zero payout address before the contract call", () => {
+    expect(
+      validatePotDraft(
+        {
+          ...validTargetDraft,
+          mode: "crowdfunding-deadline",
+          payoutRecipient: `0x${"0".repeat(40)}`,
+        },
+        now,
+      ),
+    ).toContain("Enter a valid approved payout wallet address.");
+  });
+
+  it("rejects an unsupported mode from untrusted input", () => {
+    expect(
+      validatePotDraft(
+        { ...validTargetDraft, mode: "unknown" as PotDraft["mode"] },
+        now,
+      ),
+    ).toContain("Choose a supported money rule.");
+  });
   it("accepts a valid target pot with a future deadline", () => {
     expect(validatePotDraft(validTargetDraft, now)).toEqual([]);
   });
 
   it("measures pot names by UTF-8 bytes", () => {
-    expect(validatePotDraft({ ...validTargetDraft, name: "🎉".repeat(20) }, now)).toEqual([]);
-    expect(validatePotDraft({ ...validTargetDraft, name: "🎉".repeat(21) }, now)).toContain(
-      "The name must be 80 UTF-8 bytes or fewer.",
-    );
+    expect(
+      validatePotDraft({ ...validTargetDraft, name: "🎉".repeat(20) }, now),
+    ).toEqual([]);
+    expect(
+      validatePotDraft({ ...validTargetDraft, name: "🎉".repeat(21) }, now),
+    ).toContain("The name must be 80 UTF-8 bytes or fewer.");
   });
 
   it("rejects a minimum contribution larger than the target", () => {
     expect(
-      validatePotDraft({ ...validTargetDraft, target: "10", minimum: "10.0001" }, now),
+      validatePotDraft(
+        { ...validTargetDraft, target: "10", minimum: "10.0001" },
+        now,
+      ),
     ).toContain("The minimum contribution cannot be greater than the goal.");
   });
 
   it("requires a strictly future deadline for target pots", () => {
-    expect(validatePotDraft({ ...validTargetDraft, deadline: "" }, now)).toContain(
-      "Choose a deadline for this pot.",
-    );
     expect(
-      validatePotDraft({ ...validTargetDraft, deadline: new Date(now).toISOString() }, now),
+      validatePotDraft({ ...validTargetDraft, deadline: "" }, now),
+    ).toContain("Choose a deadline for this pot.");
+    expect(
+      validatePotDraft(
+        { ...validTargetDraft, deadline: new Date(now).toISOString() },
+        now,
+      ),
     ).toContain("Choose a deadline in the future.");
   });
 
@@ -109,7 +140,10 @@ describe("validatePotDraft", () => {
       );
       expect(
         validatePotDraft(
-          { ...campaignDraft, payoutRecipient: "0x1111111111111111111111111111111111111111" },
+          {
+            ...campaignDraft,
+            payoutRecipient: "0x1111111111111111111111111111111111111111",
+          },
           now,
         ),
       ).toEqual([]);
@@ -161,7 +195,36 @@ describe("validatePotDraft", () => {
 
   it("counts purpose text by Unicode code points", () => {
     expect(
-      validatePotDraft({ ...validTargetDraft, purpose: "🎉".repeat(2001) }, now),
+      validatePotDraft(
+        { ...validTargetDraft, purpose: "🎉".repeat(2001) },
+        now,
+      ),
     ).toContain("The purpose must be 2,000 characters or fewer.");
+  });
+});
+
+describe("plan export", () => {
+  it("preserves exact amounts and an unambiguous deadline, and never implies a payment request", () => {
+    const plan = formatPotPlan({
+      ...validTargetDraft,
+      target: "900719925474099300.123456",
+      deadline: "2030-01-02T12:00:00+01:00",
+    });
+    expect(plan).toContain("900719925474099300.123456 USDC");
+    expect(plan).toContain("2030-01-02T11:00:00.000Z");
+    expect(plan).toContain("Refunds are not automatic");
+    expect(plan).toContain("not a payment request");
+  });
+
+  it("discloses no refunds and the named wallet for crowdfunding", () => {
+    const plan = formatPotPlan({
+      ...validTargetDraft,
+      mode: "crowdfunding-anytime",
+      payoutRecipient: "0x1111111111111111111111111111111111111111",
+      isPublic: false,
+    });
+    expect(plan).toContain("No contributor refunds");
+    expect(plan).toContain("0x1111111111111111111111111111111111111111");
+    expect(plan).toContain("private link");
   });
 });

@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { formatTokenAmount, type PublicDiscoveryPot } from "@/lib/public-pot";
+import type { PublicDiscoveryPot } from "@/lib/public-pot";
+import { formatDisplayAmount } from "@/lib/format-amount";
 
 type ResultState =
   | { status: "loading" }
+  | { status: "unavailable" }
   | { status: "loaded"; pots: PublicDiscoveryPot[] }
   | { status: "error"; message: string };
 
@@ -42,10 +44,7 @@ function isDiscoveryPot(value: unknown): value is PublicDiscoveryPot {
 }
 
 function formatUsdc(amount: string): string {
-  const [whole, fraction = ""] = formatTokenAmount(amount, 6).split(".");
-  const groupedWhole = BigInt(whole).toLocaleString();
-  const visibleFraction = fraction.slice(0, 2).replace(/0+$/, "");
-  return `${visibleFraction ? `${groupedWhole}.${visibleFraction}` : groupedWhole} USDC`;
+  return formatDisplayAmount(amount);
 }
 
 function formatDeadline(deadline: string): string {
@@ -79,6 +78,11 @@ export function PotDiscovery() {
           { cache: "no-store", signal: controller.signal },
         );
         const data: unknown = await response.json().catch(() => null);
+        if (controller.signal.aborted) return;
+        if (response.status === 503) {
+          setState({ status: "unavailable" });
+          return;
+        }
         if (!response.ok) {
           setState({
             status: "error",
@@ -90,7 +94,10 @@ export function PotDiscovery() {
           return;
         }
         if (!Array.isArray(data) || !data.every(isDiscoveryPot)) {
-          setState({ status: "error", message: "Public pot data was returned in an invalid format." });
+          setState({
+            status: "error",
+            message: "Public pot data was returned in an invalid format.",
+          });
           return;
         }
         setState({ status: "loaded", pots: data });
@@ -98,7 +105,10 @@ export function PotDiscovery() {
         if (controller.signal.aborted) return;
         setState({
           status: "error",
-          message: error instanceof Error ? error.message : "Could not load public pots.",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Could not load public pots.",
         });
       }
     }
@@ -107,11 +117,14 @@ export function PotDiscovery() {
   }, [submittedQuery, refreshKey]);
 
   return (
-    <div className="discovery-page-content">
+    <div className="discovery-page-content" id="main-content" tabIndex={-1}>
       <header className="discovery-heading">
         <p className="pot-eyebrow">PUBLIC POTS · BASE SEPOLIA</p>
         <h1>Find a group fund.</h1>
-        <p>Browse public pots and check the money rules before you open one. Amounts are read from Base Sepolia.</p>
+        <p>
+          Browse public pots and check the money rules before you open one.
+          Amounts are read from Base Sepolia.
+        </p>
       </header>
       <form
         className="discovery-search"
@@ -121,7 +134,9 @@ export function PotDiscovery() {
           setSubmittedQuery(query.trim());
         }}
       >
-        <label className="sr-only" htmlFor="pot-discovery-search">Search public pots</label>
+        <label className="sr-only" htmlFor="pot-discovery-search">
+          Search public pots
+        </label>
         <input
           id="pot-discovery-search"
           maxLength={60}
@@ -129,55 +144,109 @@ export function PotDiscovery() {
           placeholder="Search by name or description"
           value={query}
         />
-        <button className="wallet-action wallet-action-primary" type="submit">Search</button>
+        <button className="wallet-action wallet-action-primary" type="submit">
+          Search
+        </button>
       </form>
 
-      <section className="discovery-results" aria-labelledby="discovery-results-title">
+      <section
+        className="discovery-results"
+        aria-labelledby="discovery-results-title"
+      >
         <div className="discovery-results-heading">
-          <h2 id="discovery-results-title">{submittedQuery ? "Search results" : "Recently listed"}</h2>
+          <h2 id="discovery-results-title">
+            {submittedQuery ? "Search results" : "Recently listed"}
+          </h2>
           <span>Public pots only</span>
         </div>
         {state.status === "loading" ? (
-          <div className="organizer-list-state" role="status"><p>Looking for public pots…</p></div>
+          <div className="organizer-list-state" role="status">
+            <p>Looking for public pots…</p>
+          </div>
+        ) : state.status === "unavailable" ? (
+          <div className="organizer-list-state organizer-list-empty">
+            <h3>Public pots aren’t available yet</h3>
+            <p>
+              The testnet services are still being set up. You can make and
+              share a plan without connecting a wallet.
+            </p>
+            <Link className="text-link" href="/create">
+              Plan a pot
+            </Link>
+          </div>
         ) : state.status === "error" ? (
-          <div className="organizer-list-state organizer-list-error" role="alert">
+          <div
+            className="organizer-list-state organizer-list-error"
+            role="alert"
+          >
             <p>{state.message}</p>
-            <button type="button" onClick={() => setRefreshKey((key) => key + 1)}>Try again</button>
+            <button
+              type="button"
+              onClick={() => setRefreshKey((key) => key + 1)}
+            >
+              Try again
+            </button>
           </div>
         ) : !state.pots.length ? (
           <div className="organizer-list-state organizer-list-empty">
-            <h3>{submittedQuery ? "No pots match that search" : "No public pots are listed yet"}</h3>
-            <p>{submittedQuery ? "Try a shorter search or another name." : "Check back when organizers publish public pots."}</p>
+            <h3>
+              {submittedQuery
+                ? "No pots match that search"
+                : "No public pots are listed yet"}
+            </h3>
+            <p>
+              {submittedQuery
+                ? "Try a shorter search or another name."
+                : "Check back when organizers publish public pots."}
+            </p>
           </div>
         ) : (
           <ol className="discovery-pot-grid">
             {state.pots.map((pot) => {
               const target = BigInt(pot.targetAmount);
               const total = BigInt(pot.totalContributed);
-              const progress = target > BigInt(0) ? (total * BigInt(100)) / target : BigInt(0);
-              const progressWidth = Number(progress > BigInt(100) ? BigInt(100) : progress);
+              const progress =
+                target > BigInt(0) ? (total * BigInt(100)) / target : BigInt(0);
+              const progressWidth = Number(
+                progress > BigInt(100) ? BigInt(100) : progress,
+              );
               return (
                 <li key={pot.address} className="discovery-pot-card">
                   <Link href={`/pot/${pot.address}`}>
-                    <span className="discovery-pot-mark" aria-hidden="true">POT</span>
-                    <span className="discovery-pot-rule">{getFundingRule(pot.fundingMode)}</span>
+                    <span className="discovery-pot-mark" aria-hidden="true">
+                      POT
+                    </span>
+                    <span className="discovery-pot-rule">
+                      {getFundingRule(pot.fundingMode)}
+                    </span>
                     <strong>{pot.name}</strong>
                     <span className="discovery-pot-description">
-                      {pot.description || "The organizer hasn’t added a description yet."}
+                      {pot.description ||
+                        "The organizer hasn’t added a description yet."}
                     </span>
                     <span className="discovery-pot-progress">
-                      <span><b>{formatUsdc(pot.totalContributed)}</b> contributed</span>
+                      <span>
+                        <b>{formatUsdc(pot.totalContributed)}</b> contributed
+                      </span>
                       <span>{formatUsdc(pot.targetAmount)} goal</span>
-                      <i aria-hidden="true"><i style={{ width: `${progressWidth}%` }} /></i>
+                      <i aria-hidden="true">
+                        <i style={{ width: `${progressWidth}%` }} />
+                      </i>
                     </span>
                     <span className="discovery-pot-facts">
-                      <span><b>{formatUsdc(pot.escrowBalance)}</b> currently in pot</span>
                       <span>
-                        {pot.contributionOpen ? "Open for contributions" : "Contributions closed"} ·{" "}
-                        {formatDeadline(pot.deadline)}
+                        <b>{formatUsdc(pot.escrowBalance)}</b> currently in pot
+                      </span>
+                      <span>
+                        {pot.contributionOpen
+                          ? "Open for contributions"
+                          : "Contributions closed"}{" "}
+                        · {formatDeadline(pot.deadline)}
                       </span>
                     </span>
-                    <span className="discovery-pot-open">View pot <span aria-hidden="true">→</span></span>
+                    <span className="discovery-pot-open">
+                      View pot <span aria-hidden="true">→</span>
+                    </span>
                   </Link>
                 </li>
               );
@@ -185,7 +254,9 @@ export function PotDiscovery() {
           </ol>
         )}
         {state.status === "loaded" && state.pots.length === 25 && (
-          <p className="discovery-limit-note">Showing the 25 most recently listed pots.</p>
+          <p className="discovery-limit-note">
+            Showing the 25 most recently listed pots.
+          </p>
         )}
       </section>
     </div>

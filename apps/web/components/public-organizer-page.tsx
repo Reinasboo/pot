@@ -58,10 +58,13 @@ export function PublicOrganizerPage({ wallet }: { wallet: string }) {
     const controller = new AbortController();
     async function loadProfile() {
       try {
-        const response = await fetch(`/api/organizer/${encodeURIComponent(wallet)}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
+        const response = await fetch(
+          `/api/organizer/${encodeURIComponent(wallet)}`,
+          {
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
         const result: unknown = await response.json().catch(() => null);
         if (!response.ok) {
           throw new Error(
@@ -71,12 +74,18 @@ export function PublicOrganizerPage({ wallet }: { wallet: string }) {
           );
         }
         if (!isOrganizerPageData(result)) {
-          throw new Error("Organizer page data was returned in an invalid format.");
+          throw new Error(
+            "Organizer page data was returned in an invalid format.",
+          );
         }
         setData(result);
       } catch (caught) {
         if (controller.signal.aborted) return;
-        setError(caught instanceof Error ? caught.message : "Could not load this organizer’s page.");
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "Could not load this organizer’s page.",
+        );
       }
     }
     void loadProfile();
@@ -84,7 +93,7 @@ export function PublicOrganizerPage({ wallet }: { wallet: string }) {
   }, [wallet]);
 
   return (
-    <div className="public-organizer-content">
+    <div className="public-organizer-content" id="main-content" tabIndex={-1}>
       {error ? (
         <div className="public-organizer-state" role="alert">
           <h1>We can’t show this organizer page.</h1>
@@ -97,7 +106,10 @@ export function PublicOrganizerPage({ wallet }: { wallet: string }) {
         </div>
       ) : (
         <>
-          <header className="public-organizer-heading" style={{ borderColor: data.profile.accentColor }}>
+          <header
+            className="public-organizer-heading"
+            style={{ borderColor: data.profile.accentColor }}
+          >
             <p className="pot-eyebrow">POT ORGANIZER · BASE SEPOLIA</p>
             <h1>{data.profile.displayName || "Group fund organizer"}</h1>
             {data.profile.bio && <p>{data.profile.bio}</p>}
@@ -106,10 +118,15 @@ export function PublicOrganizerPage({ wallet }: { wallet: string }) {
           {data.collections.length ? (
             <div className="public-organizer-collections">
               {data.collections.map((collection) => (
-                <section key={collection.id} aria-labelledby={`collection-${collection.id}`}>
+                <section
+                  key={collection.id}
+                  aria-labelledby={`collection-${collection.id}`}
+                >
                   <div>
                     <p className="pot-eyebrow">COLLECTION</p>
-                    <h2 id={`collection-${collection.id}`}>{collection.name}</h2>
+                    <h2 id={`collection-${collection.id}`}>
+                      {collection.name}
+                    </h2>
                     {collection.description && <p>{collection.description}</p>}
                   </div>
                   {collection.pots.length ? (
@@ -118,14 +135,19 @@ export function PublicOrganizerPage({ wallet }: { wallet: string }) {
                         <li key={pot.address}>
                           <Link href={`/pot/${pot.address}`}>
                             <strong>{pot.name}</strong>
-                            <span>{pot.description || "Open public pot and review its money rules."}</span>
+                            <span>
+                              {pot.description ||
+                                "Open public pot and review its money rules."}
+                            </span>
                             <b>View pot →</b>
                           </Link>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="organizer-tools-empty">No public pots in this collection yet.</p>
+                    <p className="organizer-tools-empty">
+                      No public pots in this collection yet.
+                    </p>
                   )}
                 </section>
               ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
@@ -10,11 +10,15 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { getBuilderDataSuffix, requireBuilderDataSuffix } from "@/lib/builder-attribution";
+import {
+  getBuilderDataSuffix,
+  requireBuilderDataSuffix,
+} from "@/lib/builder-attribution";
 import { PotMetadataEditor } from "@/components/pot-metadata-editor";
 import { supportedChain } from "@/lib/wagmi";
 import {
   getCrowdfundingCreateArguments,
+  formatPotPlan,
   getPotFactoryCreateArguments,
   isCrowdfundingMode,
   validatePotDraft,
@@ -57,13 +61,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isStoredDraft(value: unknown): value is StoredDraft {
-  if (!isRecord(value) || value.version !== 1 || !isRecord(value.draft)) return false;
+  if (!isRecord(value) || value.version !== 1 || !isRecord(value.draft))
+    return false;
   const draft = value.draft;
   return (
     typeof draft.name === "string" &&
     draft.name.length <= 120 &&
     (draft.purpose === undefined ||
-      (typeof draft.purpose === "string" && Array.from(draft.purpose).length <= 2000)) &&
+      (typeof draft.purpose === "string" &&
+        Array.from(draft.purpose).length <= 2000)) &&
     (draft.mode === "target" ||
       draft.mode === "flexible" ||
       draft.mode === "crowdfunding-deadline" ||
@@ -75,7 +81,8 @@ function isStoredDraft(value: unknown): value is StoredDraft {
     typeof draft.minimum === "string" &&
     draft.minimum.length <= 120 &&
     (draft.payoutRecipient === undefined ||
-      (typeof draft.payoutRecipient === "string" && draft.payoutRecipient.length <= 64)) &&
+      (typeof draft.payoutRecipient === "string" &&
+        draft.payoutRecipient.length <= 64)) &&
     (draft.isPublic === undefined || typeof draft.isPublic === "boolean")
   );
 }
@@ -104,12 +111,24 @@ function formatDeadline(value: string): string {
   }).format(new Date(value));
 }
 
-export function PotCreationDraft() {
-  const [draft, setDraft] = useState(initialDraft);
+export function PotCreationDraft({
+  template,
+}: {
+  template?: Pick<PotDraft, "name" | "purpose" | "target" | "minimum">;
+}) {
+  const previewRef = useRef<HTMLElement>(null);
+  const errorsRef = useRef<HTMLDivElement>(null);
+  const [draft, setDraft] = useState<Draft>(() => ({
+    ...initialDraft,
+    ...template,
+  }));
   const [errors, setErrors] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [storageMessage, setStorageMessage] = useState("");
-  const [pendingAction, setPendingAction] = useState<"save" | "restore" | "clear" | null>(null);
+  const [exportMessage, setExportMessage] = useState("");
+  const [pendingAction, setPendingAction] = useState<
+    "save" | "restore" | "clear" | null
+  >(null);
   const [transactionHash, setTransactionHash] = useState<`0x${string}`>();
   const [transactionError, setTransactionError] = useState("");
   const { address: walletAddress, chainId, isConnected } = useAccount();
@@ -146,9 +165,10 @@ export function PotCreationDraft() {
     hash: transactionHash,
     query: { enabled: Boolean(transactionHash) },
   });
-  const createdPotAddress = receipt?.status === "success"
-    ? getCreatedPotAddress(receipt.logs)
-    : undefined;
+  const createdPotAddress =
+    receipt?.status === "success"
+      ? getCreatedPotAddress(receipt.logs)
+      : undefined;
   const wrongNetwork = isConnected && chainId !== supportedChain.id;
   const factoryUsesUsdc =
     factoryToken?.toLowerCase() === circleBaseSepoliaUsdc.toLowerCase();
@@ -164,14 +184,15 @@ export function PotCreationDraft() {
   });
   const creationReady = Boolean(
     factoryAddress &&
-      factoryUsesUsdc &&
-      builderDataSuffix &&
-      isConnected &&
-      walletAddress &&
-      !wrongNetwork,
+    factoryUsesUsdc &&
+    builderDataSuffix &&
+    isConnected &&
+    walletAddress &&
+    !wrongNetwork,
   );
   const selectedModeReady =
-    creationReady && (!isCrowdfundingMode(draft.mode) || crowdfundingSupported === true);
+    creationReady &&
+    (!isCrowdfundingMode(draft.mode) || crowdfundingSupported === true);
   const hasSavedDraft = useSyncExternalStore(
     subscribeToDraftStorage,
     getDraftStorageSnapshot,
@@ -183,6 +204,7 @@ export function PotCreationDraft() {
     setErrors([]);
     setShowPreview(false);
     setStorageMessage("");
+    setExportMessage("");
   }
 
   function saveDraft(confirmed = false) {
@@ -199,12 +221,15 @@ export function PotCreationDraft() {
       setStorageMessage("Draft saved in this browser on this device.");
     } catch (error) {
       console.error("Could not save local pot draft", error);
-      setStorageMessage("Couldn’t save the draft. Check browser storage settings and try again.");
+      setStorageMessage(
+        "Couldn’t save the draft. Check browser storage settings and try again.",
+      );
     }
   }
 
   function restoreDraft(confirmed = false) {
-    const hasCurrentInput = JSON.stringify(draft) !== JSON.stringify(initialDraft);
+    const hasCurrentInput =
+      JSON.stringify(draft) !== JSON.stringify(initialDraft);
     if (hasSavedDraft === true && hasCurrentInput && !confirmed) {
       setPendingAction("restore");
       return;
@@ -219,7 +244,9 @@ export function PotCreationDraft() {
 
       const parsed: unknown = JSON.parse(stored);
       if (!isStoredDraft(parsed)) {
-        setStorageMessage("The saved draft has an unsupported format and could not be restored.");
+        setStorageMessage(
+          "The saved draft has an unsupported format and could not be restored.",
+        );
         return;
       }
 
@@ -232,7 +259,9 @@ export function PotCreationDraft() {
       setErrors([]);
       setShowPreview(false);
       setPendingAction(null);
-      setStorageMessage("Saved draft restored. Preview the rules to check the current values.");
+      setStorageMessage(
+        "Saved draft restored. Preview the rules to check the current values.",
+      );
     } catch (error) {
       console.error("Could not restore local pot draft", error);
       setStorageMessage("Couldn’t read the saved draft from browser storage.");
@@ -252,7 +281,9 @@ export function PotCreationDraft() {
       setStorageMessage("Saved draft removed from this browser.");
     } catch (error) {
       console.error("Could not clear local pot draft", error);
-      setStorageMessage("Couldn’t remove the saved draft from browser storage.");
+      setStorageMessage(
+        "Couldn’t remove the saved draft from browser storage.",
+      );
     }
   }
 
@@ -261,13 +292,19 @@ export function PotCreationDraft() {
     const nextErrors = validatePotDraft(draft);
     setErrors(nextErrors);
     setShowPreview(nextErrors.length === 0);
+    requestAnimationFrame(() => {
+      const target = nextErrors.length ? errorsRef.current : previewRef.current;
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ behavior: "instant", block: "center" });
+    });
   }
 
   async function createPot() {
     const nextErrors = validatePotDraft(draft);
     setErrors(nextErrors);
     if (nextErrors.length > 0) return;
-    if (!factoryAddress || !factoryUsesUsdc || !isConnected || wrongNetwork) return;
+    if (!factoryAddress || !factoryUsesUsdc || !isConnected || wrongNetwork)
+      return;
 
     try {
       requireBuilderDataSuffix();
@@ -291,21 +328,53 @@ export function PotCreationDraft() {
       setTransactionHash(hash);
     } catch (error) {
       setTransactionError(
-        error instanceof Error ? error.message : "The wallet could not submit this transaction.",
+        error instanceof Error
+          ? error.message
+          : "The wallet could not submit this transaction.",
       );
     }
   }
 
+  async function copyPlan() {
+    try {
+      await navigator.clipboard.writeText(formatPotPlan(draft));
+      setExportMessage("Plan copied. Paste it into your group chat.");
+    } catch {
+      setExportMessage(
+        "Copy is unavailable in this browser. Download the plan instead.",
+      );
+    }
+  }
+
+  function downloadPlan() {
+    const url = URL.createObjectURL(
+      new Blob([formatPotPlan(draft)], { type: "text/plain;charset=utf-8" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "pot-plan.txt";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setExportMessage(
+      "Plan downloaded. You can share the file with your group.",
+    );
+  }
+
   return (
-    <div className="pot-create-layout">
-      <section className="pot-create-form-section" aria-labelledby="create-form-title">
+    <div className="pot-create-layout" id="main-content" tabIndex={-1}>
+      <section
+        className="pot-create-form-section"
+        aria-labelledby="create-form-title"
+      >
         <div className="pot-create-intro">
           <p className="pot-eyebrow">PLAN PREVIEW</p>
           <h1 id="create-form-title">Plan a group fund.</h1>
           <p>
-            Fill in the details to preview the plan. Right now, this page does not create a public
-            pot or collect money. You can save the draft in this browser and share the rules with
-            your group another way.
+            Name your goal and choose the rules. Save your draft or share the
+            preview with your group. This preview does not create a public pot
+            or collect money.
           </p>
         </div>
 
@@ -320,11 +389,16 @@ export function PotCreationDraft() {
               placeholder="What are you planning together?"
               value={draft.name}
             />
-            <span className="pot-form-hint">Keep the name under 80 characters.</span>
+            <span className="pot-form-hint">
+              Up to 80 bytes of text. Emoji and some letters use more than one
+              byte.
+            </span>
           </div>
 
           <div className="pot-form-field">
-            <label htmlFor="pot-purpose">What is this pot for? <span>(optional)</span></label>
+            <label htmlFor="pot-purpose">
+              What is this pot for? <span>(optional)</span>
+            </label>
             <textarea
               id="pot-purpose"
               maxLength={4000}
@@ -334,14 +408,17 @@ export function PotCreationDraft() {
               value={draft.purpose}
             />
             <span className="pot-form-hint">
-              {Array.from(draft.purpose).length.toLocaleString()} / 2,000 characters. Saved with
-              your local draft; publish separately after creating the pot.
+              {Array.from(draft.purpose).length.toLocaleString()} / 2,000
+              characters. Saved with your local draft; publish separately after
+              creating the pot.
             </span>
           </div>
 
           <fieldset className="pot-mode-fieldset">
             <legend>What should happen to the money?</legend>
-            <label className={`pot-mode-option${draft.mode === "target" ? " is-selected" : ""}`}>
+            <label
+              className={`pot-mode-option${draft.mode === "target" ? " is-selected" : ""}`}
+            >
               <input
                 checked={draft.mode === "target"}
                 name="settlement-mode"
@@ -351,10 +428,16 @@ export function PotCreationDraft() {
               />
               <span>
                 <strong>Refund contributors if we miss the goal</strong>
-                <span>Set an amount and deadline. If time runs out before the goal is reached, each contributor can claim back their own contribution. Refunds are not automatic.</span>
+                <span>
+                  Set an amount and deadline. If time runs out before the goal
+                  is reached, each contributor can claim back their own
+                  contribution. Refunds are not automatic.
+                </span>
               </span>
             </label>
-            <label className={`pot-mode-option${draft.mode === "crowdfunding-deadline" ? " is-selected" : ""}`}>
+            <label
+              className={`pot-mode-option${draft.mode === "crowdfunding-deadline" ? " is-selected" : ""}`}
+            >
               <input
                 checked={draft.mode === "crowdfunding-deadline"}
                 name="settlement-mode"
@@ -364,10 +447,16 @@ export function PotCreationDraft() {
               />
               <span>
                 <strong>Crowdfund until the deadline</strong>
-                <span>The goal is a target, not a cap. Keep accepting contributions until the deadline, then the approved wallet can withdraw all funds—whether or not the goal was reached. No refunds.</span>
+                <span>
+                  The goal is a target, not a cap. Keep accepting contributions
+                  until the deadline, then the approved wallet can withdraw all
+                  funds—whether or not the goal was reached. No refunds.
+                </span>
               </span>
             </label>
-            <label className={`pot-mode-option${draft.mode === "crowdfunding-anytime" ? " is-selected" : ""}`}>
+            <label
+              className={`pot-mode-option${draft.mode === "crowdfunding-anytime" ? " is-selected" : ""}`}
+            >
               <input
                 checked={draft.mode === "crowdfunding-anytime"}
                 name="settlement-mode"
@@ -376,16 +465,23 @@ export function PotCreationDraft() {
                 value="crowdfunding-anytime"
               />
               <span>
-                <strong>Let the approved wallet withdraw as funds come in</strong>
-                <span>The goal is a target, not a cap. The approved wallet can withdraw the available balance at any time, while contributions stay open until the deadline. No refunds.</span>
+                <strong>
+                  Let the approved wallet withdraw as funds come in
+                </strong>
+                <span>
+                  The goal is a target, not a cap. The approved wallet can
+                  withdraw the available balance at any time, while
+                  contributions stay open until the deadline. No refunds.
+                </span>
               </span>
             </label>
           </fieldset>
 
           {draft.mode === "flexible" && (
             <p className="pot-form-errors" role="alert">
-              This saved plan uses an organizer-decides rule that is no longer available for new
-              pots. Choose a goal-based or crowdfunding rule instead.
+              This saved plan uses an organizer-decides rule that is no longer
+              available for new pots. Choose a goal-based or crowdfunding rule
+              instead.
             </p>
           )}
 
@@ -393,13 +489,17 @@ export function PotCreationDraft() {
             <div className="pot-form-two-column">
               <div className="pot-form-field">
                 <label htmlFor="pot-goal">
-                  {isCrowdfundingMode(draft.mode) ? "Fundraising goal" : "Funding goal"}
+                  {isCrowdfundingMode(draft.mode)
+                    ? "Fundraising goal"
+                    : "Funding goal"}
                 </label>
                 <input
                   autoComplete="off"
                   id="pot-goal"
                   inputMode="decimal"
-                  onChange={(event) => updateDraft({ target: event.target.value })}
+                  onChange={(event) =>
+                    updateDraft({ target: event.target.value })
+                  }
                   placeholder="0.00"
                   value={draft.target}
                 />
@@ -408,7 +508,9 @@ export function PotCreationDraft() {
                 <label htmlFor="pot-deadline">Deadline</label>
                 <input
                   id="pot-deadline"
-                  onChange={(event) => updateDraft({ deadline: event.target.value })}
+                  onChange={(event) =>
+                    updateDraft({ deadline: event.target.value })
+                  }
                   type="datetime-local"
                   value={draft.deadline}
                 />
@@ -418,24 +520,30 @@ export function PotCreationDraft() {
 
           {isCrowdfundingMode(draft.mode) && (
             <div className="pot-form-field">
-              <label htmlFor="pot-payout-recipient">Approved payout wallet</label>
+              <label htmlFor="pot-payout-recipient">
+                Approved payout wallet
+              </label>
               <input
                 autoComplete="off"
                 id="pot-payout-recipient"
                 inputMode="text"
-                onChange={(event) => updateDraft({ payoutRecipient: event.target.value })}
+                onChange={(event) =>
+                  updateDraft({ payoutRecipient: event.target.value })
+                }
                 placeholder="0x..."
                 value={draft.payoutRecipient}
               />
               <span className="pot-form-hint">
-                Contributors can see this address before they contribute. Only this wallet can
-                withdraw crowdfunding funds.
+                Contributors can see this address before they contribute. Only
+                this wallet can withdraw crowdfunding funds.
               </span>
             </div>
           )}
 
           <div className="pot-form-field">
-            <label htmlFor="pot-minimum">Smallest amount someone can contribute</label>
+            <label htmlFor="pot-minimum">
+              Smallest amount someone can contribute
+            </label>
             <input
               autoComplete="off"
               id="pot-minimum"
@@ -445,7 +553,8 @@ export function PotCreationDraft() {
               value={draft.minimum}
             />
             <span className="pot-form-hint">
-              Enter an amount in USDC. Contributions use USDC on Base Sepolia testnet.
+              Enter an amount in USDC. Contributions use USDC on Base Sepolia
+              testnet.
             </span>
           </div>
 
@@ -458,7 +567,10 @@ export function PotCreationDraft() {
                 onChange={() => updateDraft({ isPublic: true })}
                 type="radio"
               />
-              <span><strong>Anyone</strong> — the pot can be found and opened by everyone.</span>
+              <span>
+                <strong>Anyone</strong> — the pot can be found and opened by
+                everyone.
+              </span>
             </label>
             <label>
               <input
@@ -467,19 +579,30 @@ export function PotCreationDraft() {
                 onChange={() => updateDraft({ isPublic: false })}
                 type="radio"
               />
-              <span><strong>Only people with a private link</strong> — keep it out of public listings.</span>
+              <span>
+                <strong>Only people with a private link</strong> — keep it out
+                of public listings.
+              </span>
             </label>
             <p className="pot-form-hint">
-              A private link works like a key. Anyone who has it can open and share the pot in POT.
-              The pot address and transactions are still public on Base.
+              A private link works like a key. Anyone who has it can open and
+              share the pot in POT. The pot address and transactions are still
+              public on Base.
             </p>
           </fieldset>
 
           {errors.length > 0 && (
-            <div className="pot-form-errors" role="alert">
+            <div
+              className="pot-form-errors"
+              role="alert"
+              ref={errorsRef}
+              tabIndex={-1}
+            >
               <p>Check these details:</p>
               <ul>
-                {errors.map((error) => <li key={error}>{error}</li>)}
+                {errors.map((error) => (
+                  <li key={error}>{error}</li>
+                ))}
               </ul>
             </div>
           )}
@@ -488,12 +611,22 @@ export function PotCreationDraft() {
             Preview this plan
           </button>
           <div className="pot-draft-actions" aria-label="Local draft actions">
-            <button type="button" onClick={() => saveDraft()}>Save draft on this device</button>
-            <button type="button" onClick={() => restoreDraft()}>Restore saved draft</button>
-            <button type="button" onClick={() => clearDraft()}>Clear saved draft</button>
+            <button type="button" onClick={() => saveDraft()}>
+              Save draft on this device
+            </button>
+            <button type="button" onClick={() => restoreDraft()}>
+              Restore saved draft
+            </button>
+            <button type="button" onClick={() => clearDraft()}>
+              Clear saved draft
+            </button>
           </div>
           {pendingAction && (
-            <div className="pot-draft-confirmation" role="group" aria-label="Confirm local draft action">
+            <div
+              className="pot-draft-confirmation"
+              role="group"
+              aria-label="Confirm local draft action"
+            >
               <p>
                 {pendingAction === "save"
                   ? "A saved draft already exists on this device. Replace it?"
@@ -515,12 +648,18 @@ export function PotCreationDraft() {
                     ? "Replace form values"
                     : "Clear saved draft"}
               </button>
-              <button type="button" onClick={() => setPendingAction(null)}>Cancel</button>
+              <button type="button" onClick={() => setPendingAction(null)}>
+                Cancel
+              </button>
             </div>
           )}
         </form>
 
-        <p className="pot-create-storage-message" role="status" aria-live="polite">
+        <p
+          className="pot-create-storage-message"
+          role="status"
+          aria-live="polite"
+        >
           {storageMessage ||
             (hasSavedDraft === true
               ? "A saved draft is available in this browser. Restore it to fill in this form."
@@ -543,15 +682,17 @@ export function PotCreationDraft() {
                     ? "Pot creation is unavailable because this contract does not use Base Sepolia test USDC."
                     : !builderDataSuffix
                       ? "Pot creation is not available until the required transaction attribution is set up."
-                      : isCrowdfundingMode(draft.mode) && isCrowdfundingCapabilityError
+                      : isCrowdfundingMode(draft.mode) &&
+                          isCrowdfundingCapabilityError
                         ? "This factory does not support crowdfunding. A newer verified pot factory is required."
-                      : isCrowdfundingMode(draft.mode) && crowdfundingSupported !== true
-                        ? "Crowdfunding cannot be created until a compatible pot factory is deployed."
-                      : !isConnected
-                        ? "Connect a wallet to create this pot."
-                        : wrongNetwork
-                          ? "Switch your wallet to Base Sepolia before creating a pot."
-                          : "Your wallet will ask you to confirm before a pot is created. The description is published separately only if you choose to sign for it."}
+                        : isCrowdfundingMode(draft.mode) &&
+                            crowdfundingSupported !== true
+                          ? "Crowdfunding cannot be created until a compatible pot factory is deployed."
+                          : !isConnected
+                            ? "Connect a wallet to create this pot."
+                            : wrongNetwork
+                              ? "Switch your wallet to Base Sepolia before creating a pot."
+                              : "Your wallet will ask you to confirm before a pot is created. The description is published separately only if you choose to sign for it."}
         </p>
         {showPreview && (
           <div className="pot-create-submit">
@@ -562,12 +703,16 @@ export function PotCreationDraft() {
                 onClick={() => switchChain({ chainId: supportedChain.id })}
                 type="button"
               >
-                {isSwitchingChain ? "Switching network…" : `Switch to ${supportedChain.name}`}
+                {isSwitchingChain
+                  ? "Switching network…"
+                  : `Switch to ${supportedChain.name}`}
               </button>
             )}
             <button
               className="pot-create-preview-button"
-              disabled={!selectedModeReady || isWritePending || isReceiptLoading}
+              disabled={
+                !selectedModeReady || isWritePending || isReceiptLoading
+              }
               onClick={() => void createPot()}
               type="button"
             >
@@ -575,11 +720,14 @@ export function PotCreationDraft() {
                 ? "Confirm in your wallet…"
                 : isReceiptLoading
                   ? "Waiting for Base Sepolia to confirm…"
-                    : "Create pot"}
+                  : "Create pot"}
             </button>
           </div>
         )}
-        {(transactionError || writeError || switchChainError || isReceiptError) && (
+        {(transactionError ||
+          writeError ||
+          switchChainError ||
+          isReceiptError) && (
           <p className="pot-form-errors" role="alert">
             {transactionError ||
               writeError?.message ||
@@ -588,40 +736,120 @@ export function PotCreationDraft() {
           </p>
         )}
         {transactionHash && (
-          <p className="pot-create-storage-message" role="status" aria-live="polite">
-            {receipt?.status === "reverted"
-              ? <>Transaction reverted. <a href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`} rel="noreferrer" target="_blank">Inspect the failed transaction</a>.</>
-              : receipt?.status === "success"
-              ? createdPotAddress
-                ? <>Pot created at <a href={`${supportedChain.blockExplorers.default.url}/address/${createdPotAddress}`} rel="noreferrer" target="_blank">{createdPotAddress}</a>. <a href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`} rel="noreferrer" target="_blank">View transaction</a>.</>
-                : <>Transaction confirmed, but no PotCreated event was found. <a href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`} rel="noreferrer" target="_blank">Inspect the transaction</a> before retrying.</>
-              : isReceiptError
-                ? <>Could not verify the transaction receipt. <a href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`} rel="noreferrer" target="_blank">Check its status before retrying</a>.</>
-                : <>Transaction submitted. <a href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`} rel="noreferrer" target="_blank">View pending transaction</a>.</>}
+          <p
+            className="pot-create-storage-message"
+            role="status"
+            aria-live="polite"
+          >
+            {receipt?.status === "reverted" ? (
+              <>
+                Transaction reverted.{" "}
+                <a
+                  href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Inspect the failed transaction
+                </a>
+                .
+              </>
+            ) : receipt?.status === "success" ? (
+              createdPotAddress ? (
+                <>
+                  Pot created at{" "}
+                  <a
+                    href={`${supportedChain.blockExplorers.default.url}/address/${createdPotAddress}`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {createdPotAddress}
+                  </a>
+                  .{" "}
+                  <a
+                    href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    View transaction
+                  </a>
+                  .
+                </>
+              ) : (
+                <>
+                  Transaction confirmed, but no PotCreated event was found.{" "}
+                  <a
+                    href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Inspect the transaction
+                  </a>{" "}
+                  before retrying.
+                </>
+              )
+            ) : isReceiptError ? (
+              <>
+                Could not verify the transaction receipt.{" "}
+                <a
+                  href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Check its status before retrying
+                </a>
+                .
+              </>
+            ) : (
+              <>
+                Transaction submitted.{" "}
+                <a
+                  href={`${supportedChain.blockExplorers.default.url}/tx/${transactionHash}`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  View pending transaction
+                </a>
+                .
+              </>
+            )}
           </p>
         )}
-        {receipt?.status === "success" && createdPotAddress && walletAddress && (
-          <div className="pot-create-published-metadata">
-            <p>
-              Your pot’s rules are onchain. Choose who can open the POT page below and sign to save.
-            </p>
-            <PotMetadataEditor
-              address={createdPotAddress}
-              organizer={walletAddress}
-              initialIsPublic={draft.isPublic ?? true}
-              isPersisted={false}
-              initialDescription={draft.purpose.trim()}
-            />
-          </div>
-        )}
+        {receipt?.status === "success" &&
+          createdPotAddress &&
+          walletAddress && (
+            <div className="pot-create-published-metadata">
+              <p>
+                Your pot’s rules are onchain. Choose who can open the POT page
+                below and sign to save.
+              </p>
+              <PotMetadataEditor
+                address={createdPotAddress}
+                organizer={walletAddress}
+                initialIsPublic={draft.isPublic ?? true}
+                isPersisted={false}
+                initialDescription={draft.purpose.trim()}
+              />
+            </div>
+          )}
       </section>
 
-      <aside className="pot-create-preview" aria-live="polite">
-        <p className="pot-eyebrow">{showPreview ? "YOUR PLAN PREVIEW" : "WHAT YOU’RE PLANNING"}</p>
+      <aside
+        className="pot-create-preview"
+        aria-live="polite"
+        ref={previewRef}
+        tabIndex={-1}
+      >
+        <p className="pot-eyebrow">
+          {showPreview ? "YOUR PLAN PREVIEW" : "WHAT YOU’RE PLANNING"}
+        </p>
         {showPreview ? (
           <>
             <h2>{draft.name.trim()}</h2>
-            {draft.purpose.trim() && <p className="pot-create-preview-purpose">{draft.purpose.trim()}</p>}
+            {draft.purpose.trim() && (
+              <p className="pot-create-preview-purpose">
+                {draft.purpose.trim()}
+              </p>
+            )}
             <dl className="pot-create-preview-details">
               <div>
                 <dt>Money rules</dt>
@@ -638,7 +866,11 @@ export function PotCreationDraft() {
               {draft.mode !== "flexible" && (
                 <>
                   <div>
-                    <dt>{isCrowdfundingMode(draft.mode) ? "Fundraising goal" : "Goal"}</dt>
+                    <dt>
+                      {isCrowdfundingMode(draft.mode)
+                        ? "Fundraising goal"
+                        : "Goal"}
+                    </dt>
                     <dd>{draft.target} USDC</dd>
                   </div>
                   <div>
@@ -659,7 +891,11 @@ export function PotCreationDraft() {
               </div>
               <div>
                 <dt>Who can open it?</dt>
-                <dd>{draft.isPublic === false ? "Only people with the private link" : "Anyone"}</dd>
+                <dd>
+                  {draft.isPublic === false
+                    ? "Only people with the private link"
+                    : "Anyone"}
+                </dd>
               </div>
             </dl>
             <p className="pot-create-preview-purpose">
@@ -672,16 +908,29 @@ export function PotCreationDraft() {
                     : "The goal is a target, not a cap. The named wallet can withdraw the current balance at any time, and contributions stay open until the deadline. Contributors cannot claim refunds under this rule."}
             </p>
             <p className="pot-create-preview-note">
-              This is only a preview. You cannot publish or fund this pot yet. Your draft is saved
-              only in this browser unless you choose otherwise.
+              This is a planning preview, not a payment request. Use Save draft
+              to keep it on this device, or copy or download the rules to share
+              with your group.
+            </p>
+            <div className="plan-export-actions">
+              <button type="button" onClick={() => void copyPlan()}>
+                Copy plan
+              </button>
+              <button type="button" onClick={downloadPlan}>
+                Download plan
+              </button>
+            </div>
+            <p className="plan-export-feedback" role="status">
+              {exportMessage}
             </p>
           </>
         ) : (
           <div className="pot-create-preview-empty">
             <h2>Your group-fund plan</h2>
             <p>
-              Add a name, choose what happens to the money, and set the goal and deadline. For
-              crowdfunding, name the wallet that will receive withdrawals.
+              Add a name, choose what happens to the money, and set the goal and
+              deadline. For crowdfunding, name the wallet that will receive
+              withdrawals.
             </p>
           </div>
         )}

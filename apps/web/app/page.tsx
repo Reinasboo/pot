@@ -1,238 +1,272 @@
-import { RoadmapSection } from "@/components/roadmap-section";
+import { pageMetadata } from "@/lib/site-metadata";
+import { Brand } from "@/components/brand";
+import Link from "next/link";
+import { HomeProductPreview } from "@/components/home-product-preview";
+import { TaglineReveal } from "@/components/tagline-reveal";
 
-export const metadata = {
-  title: "POT — Plan a group fund",
+export const metadata = pageMetadata({
+  title: "Big plans. One shared pot.",
   description:
-    "Set a group funding goal, deadline, and refund rules. Preview a plan for a trip, gift, or event. Live pots and payments are not available yet.",
-};
+    "Plan a shared gift, trip, or fundraiser with clear contribution and payout rules.",
+  path: "/",
+});
 
-const useCases = [
+const rules = [
   {
-    number: "01",
-    title: "Group gifts",
-    description: "Set a shared budget for a gift and show everyone the goal and deadline.",
+    title: "Reach the goal, or claim a refund",
+    detail:
+      "The organizer can withdraw once the goal is reached. If the deadline passes below the goal, each contributor can claim their contribution back.",
+    note: "Refunds must be claimed; they are not automatic.",
   },
   {
-    number: "02",
-    title: "Trips together",
-    description: "Agree on the trip budget, who can add money, and what happens if you miss the goal.",
+    title: "Collect until a deadline",
+    detail:
+      "Keep collecting until the deadline, even beyond the goal. After that, only the payout wallet you named can withdraw the funds.",
+    note: "No contributor refunds, even if the goal is missed.",
   },
   {
-    number: "03",
-    title: "Crowdfunding",
-    description:
-      "Preview who receives the funds and whether the approved wallet can withdraw at the deadline or as money comes in.",
-  },
-  {
-    number: "04",
-    title: "Community events",
-    description: "Set a target for venue costs, supplies, or tickets before you collect money.",
-  },
-  {
-    number: "05",
-    title: "Apps for groups",
-    description: "A shared POT API could let other apps offer group funds. It’s a future idea, not a feature you can use today.",
+    title: "Withdraw as funds come in",
+    detail:
+      "The named payout wallet can withdraw the available balance while contributions continue until the deadline. The goal is a soft target.",
+    note: "No contributor refunds under this rule.",
   },
 ];
 
-function ArrowIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none">
-      <path d="M4.25 10h11.5m-4.75-4.75L15.75 10 11 14.75" />
-    </svg>
-  );
-}
-
-function PotMark() {
-  return (
-    <span className="brand-mark" aria-hidden="true">
-      <span />
-      <span />
-      <span />
-    </span>
-  );
-}
-
 export default function Home() {
   return (
-    <main>
+    <main className="home-page">
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="POT home">
-          <PotMark />
-          <span>POT</span>
-        </a>
+        <Brand className="brand" href="/" />
         <nav className="desktop-nav" aria-label="Main navigation">
-          <a href="#how-it-works">What works today</a>
-          <a href="#rules">How the rules work</a>
-          <a href="/discover">Discover pots</a>
-          <a href="/dashboard">My pots</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#rules">Money rules</a>
+          <Link href="/discover">Discover pots</Link>
+          <Link href="/dashboard">My pots</Link>
         </nav>
-        <div className="site-header-actions">
-          <a className="header-dashboard-link" href="/dashboard">My pots</a>
-          <a className="header-link" href="/create">
-            Plan a pot <ArrowIcon />
-          </a>
-        </div>
+        <details className="home-mobile-menu">
+          <summary aria-label="Open navigation">
+            Menu <span aria-hidden="true">+</span>
+          </summary>
+          <nav aria-label="Mobile navigation">
+            <a href="#how-it-works">How it works</a>
+            <a href="#rules">Money rules</a>
+            <Link href="/discover">Discover pots</Link>
+            <Link href="/dashboard">My pots</Link>
+            <Link href="/roadmap">Roadmap</Link>
+          </nav>
+        </details>
+        <Link className="button button-primary" href="/create">
+          Plan a pot <span aria-hidden="true">↗</span>
+        </Link>
       </header>
-
-      <section className="hero section-wrap" id="top">
+      <section className="hero section-wrap" id="main-content" tabIndex={-1}>
         <div className="hero-copy">
-          <p className="eyebrow"><span className="status-dot" /> Plan the money before your group pays</p>
-          <h1>Plan a trip,<br />gift, or event<br /><span>together.</span></h1>
+          <p className="eyebrow">
+            <span className="status-dot" /> For the plans you make together
+          </p>
+          <h1>
+            Big plans.
+            <br />
+            One shared <span>pot.</span>
+          </h1>
           <p className="hero-description">
-            Set a goal and deadline. Decide who can withdraw the money and what happens if you
-            fall short. Preview the plan now; collecting payments isn’t available yet.
+            The trip. The gift. The idea everyone’s in on. Give it one shared
+            pot, a clear goal, and money rules everyone understands.
           </p>
           <div className="hero-actions">
-            <a className="button button-primary" href="/create">
-              Preview your plan <ArrowIcon />
-            </a>
-            <a className="text-link" href="#how-it-works">See how it works</a>
+            <Link className="button button-primary" href="/create">
+              Plan your pot <span aria-hidden="true">↗</span>
+            </Link>
           </div>
-          <div className="hero-proof">
-            <div className="proof-mark"><span>◎</span></div>
-            <p><strong>Your plan stays in this browser.</strong><br />Previewing does not connect a wallet or move money.</p>
-          </div>
+          <p className="hero-reassurance">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+              <path d="m5 12 4 4L19 6" />
+            </svg>
+            No wallet needed to plan. Your draft stays yours.
+          </p>
+          <p className="home-availability">
+            <span className="home-testnet-badge">Early access</span> Try the
+            planner today. <strong>No live payments.</strong>
+          </p>
         </div>
-
-        <div className="preview-wrap" aria-label="Example of what happens to the money">
-          <article className="pot-preview">
-            <div className="preview-topline">
-              <span className="preview-label">WHAT HAPPENS TO THE MONEY?</span>
-              <span className="preview-menu" aria-hidden="true">POT</span>
-            </div>
-            <div className="preview-rules-header">
-              <span className="preview-rule-mark" aria-hidden="true">01</span>
-              <div>
-                <p className="preview-overline">THREE WAYS TO SET THE RULES</p>
-                <h2>Choose who can withdraw—and when.</h2>
-              </div>
-            </div>
-            <div className="preview-rule-list">
-              <div className="preview-rule">
-                <span>Goal + deadline with refunds</span>
-                <p>If the goal is missed, each contributor can claim back their own contribution. Refunds are not automatic.</p>
-              </div>
-              <div className="preview-rule">
-                <span>Crowdfund to a deadline</span>
-                <p>The goal is a target, not a cap. Contributions stay open until the deadline; the named wallet can then withdraw all funds. No refunds.</p>
-              </div>
-              <div className="preview-rule">
-                <span>Crowdfund with early withdrawals</span>
-                <p>The goal is a target, not a cap. The named wallet can withdraw available funds at any time, while contributions stay open until the deadline. No refunds.</p>
-              </div>
-            </div>
-            <a className="preview-create-link" href="/create">Build a plan preview <ArrowIcon /></a>
-          </article>
-          <p className="preview-note">These are rule examples—not an active pot. No payment can be made.</p>
-        </div>
+        <HomeProductPreview />
       </section>
-
-      <div className="trust-strip" aria-label="Current product status">
-        <div className="trust-strip-inner">
-          <span>Plan previews work</span>
-          <i />
-          <span>No live payments</span>
-          <i />
-          <span>No pots can be created yet</span>
-        </div>
+      <div className="home-use-strip">
+        <span>For the plans worth making.</span>
+        <span>Group gifts</span>
+        <span>Weekends away</span>
+        <span>Community projects</span>
+        <span>Something of your own</span>
       </div>
-
-      <section className="how-section section-wrap" id="how-it-works">
-        <div className="section-heading">
-          <p className="eyebrow">What you can do today</p>
-          <h2>Try the plan.<br />Payments are <span>not live.</span></h2>
-          <p>Enter a name, goal, deadline, and minimum contribution to preview the rules. The preview is saved only if you choose to save it in this browser. You cannot publish a pot or collect money yet.</p>
+      <section className="section-wrap home-how" id="how-it-works">
+        <div>
+          <p className="eyebrow">Less chasing. More clarity.</p>
+          <h2>
+            Leave the awkward
+            <br />
+            <span>money chat behind.</span>
+          </h2>
+          <p>
+            One person starts the plan. Everyone can understand the goal, the
+            deadline, and what happens to the money. Fewer loose ends. More to
+            look forward to.
+          </p>
+          <Link className="text-link" href="/create">
+            Make your first plan <span aria-hidden="true">↗</span>
+          </Link>
         </div>
-        <div className="steps-grid">
-          <article className="step-card">
-            <span className="step-number">01 / ENTER DETAILS</span>
-            <div className="step-icon step-icon-create"><span>+</span></div>
-            <h3>Describe what the group is funding</h3>
-            <p>Name the trip, gift, or fundraiser. Choose whether a missed goal means a refund or the named crowdfunding wallet can still withdraw.</p>
-          </article>
-          <article className="step-card">
-            <span className="step-number">02 / PREVIEW RULES</span>
-            <div className="step-icon step-icon-share"><span>↗</span><i /><i /></div>
-            <h3>See the exact terms</h3>
-            <p>Review the goal, deadline, minimum amount per contribution, and who can withdraw or claim a refund.</p>
-          </article>
-          <article className="step-card">
-            <span className="step-number">03 / NOT AVAILABLE YET</span>
-            <div className="step-icon step-icon-fund"><span>$</span><i /><i /><i /></div>
-            <h3>You cannot create or fund it yet</h3>
-            <p>You can plan and preview a pot, but real payments are not available yet. Do not send money expecting this site to manage it.</p>
-          </article>
-        </div>
+        <ol className="home-steps">
+          <li>
+            <span>1</span>
+            <div>
+              <h3>Give the idea a name</h3>
+              <p>
+                Write down what you’re funding, how much you need, and when you
+                need it.
+              </p>
+            </div>
+          </li>
+          <li>
+            <span>2</span>
+            <div>
+              <h3>Agree on the money rules</h3>
+              <p>
+                Choose who can withdraw and whether contributors can claim a
+                refund if the goal is missed.
+              </p>
+            </div>
+          </li>
+          <li>
+            <span>3</span>
+            <div>
+              <h3>Bring everyone onto the same page</h3>
+              <p>
+                Preview the terms, save your draft, and copy or download the
+                plan to share with your group.
+              </p>
+            </div>
+          </li>
+        </ol>
       </section>
-
-      <section className="use-section" id="use-cases">
-        <div className="section-wrap use-layout">
-          <div className="use-intro">
-            <p className="eyebrow">Examples to plan for</p>
-            <h2>One shared goal<br />for <span>your group.</span></h2>
-            <p>Use the preview to write down what you are collecting for and agree on the rules before anyone pays.</p>
+      <section className="home-rules" id="rules">
+        <div className="section-wrap">
+          <div className="home-rules-heading">
+            <p className="eyebrow">No guessing where the money goes</p>
+            <h2>
+              Different plans.
+              <br />
+              <span>Clear rules.</span>
+            </h2>
+            <p>
+              Pick the rule that fits your group. Every contributor should know
+              the terms before paying.
+            </p>
           </div>
-          <div className="use-list">
-            {useCases.map((useCase) => (
-              <article className="use-case" key={useCase.number}>
-                <span className="use-number">{useCase.number}</span>
+          <div className="home-rule-list">
+            {rules.map((rule, index) => (
+              <article key={rule.title}>
+                <span className="home-rule-index">0{index + 1}</span>
+                <h3>{rule.title}</h3>
                 <div>
-                  <h3>{useCase.title}</h3>
-                  <p>{useCase.description}</p>
+                  <p>{rule.detail}</p>
+                  <small>{rule.note}</small>
                 </div>
-                <ArrowIcon />
               </article>
             ))}
           </div>
         </div>
       </section>
-
-      <section className="trust-section section-wrap" id="rules">
-        <div className="trust-copy">
-          <p className="eyebrow">Read this before anyone contributes</p>
-          <h2>Know who can take out<br />or get back <span>the money.</span></h2>
-          <p className="trust-description">
-            These are examples to help your group agree on the rules. Real payments are not
-            available yet, so the rules do not protect money sent through this site.
-          </p>
-        </div>
-        <div className="trust-points">
-          <article>
-            <span className="trust-icon">01</span>
-            <div><h3>Refund if the goal is missed</h3><p>If the deadline passes below the goal, each contributor can claim their own contribution back. Refunds are not automatic.</p></div>
-          </article>
-          <article>
-            <span className="trust-icon">02</span>
-            <div><h3>Crowdfund to a deadline</h3><p>The goal is a target, not a cap. Contributions stay open until the deadline, when the named wallet can withdraw all funds. Contributors cannot claim refunds.</p></div>
-          </article>
-          <article>
-            <span className="trust-icon">03</span>
-            <div><h3>Withdraw as crowdfunding comes in</h3><p>The goal is a target, not a cap. The named wallet can withdraw the available balance at any time, while contributions stay open until the deadline. Contributors cannot claim refunds.</p></div>
-          </article>
+      <section className="home-together section-wrap">
+        <p className="eyebrow">
+          A little from everyone. Something for all of you.
+        </p>
+        <TaglineReveal />
+        <p>
+          The best part was never the money. It’s what you make happen together.
+        </p>
+      </section>
+      <section className="section-wrap home-faq">
+        <h2>
+          Clear before
+          <br />
+          you chip in.
+        </h2>
+        <div>
+          <details>
+            <summary>Can I collect money now?</summary>
+            <p>
+              The local planner is ready to use. Live payments are not available
+              in an unconfigured installation. Test transactions require a
+              verified Base Sepolia factory, Builder Code, and configured
+              services.
+            </p>
+          </details>
+          <details>
+            <summary>Do I need a wallet to plan?</summary>
+            <p>
+              No. You can preview, save, copy, and download your plan without
+              connecting a wallet. Your draft stays on this device unless you
+              share it.
+            </p>
+          </details>
+          <details>
+            <summary>What happens if we miss the goal?</summary>
+            <p>
+              It depends on the rule you choose. With a refundable goal, each
+              contributor can claim their contribution back after the deadline.
+              Crowdfunding rules allow the named wallet to withdraw even if the
+              goal is missed. Refunds are not automatic.
+            </p>
+          </details>
+          <details>
+            <summary>How do I share a plan with my group?</summary>
+            <p>
+              Preview your plan, then use Copy plan to paste the terms into your
+              group chat, or Download plan to send a file. A planning preview is
+              not a published pot or a payment request.
+            </p>
+          </details>
+          <details>
+            <summary>What is USDC?</summary>
+            <p>
+              USDC is the token used for contributions. This version uses test
+              USDC on Base Sepolia, a test network. Test tokens have no monetary
+              value.
+            </p>
+          </details>
+          <details>
+            <summary>Is a private pot hidden from the blockchain?</summary>
+            <p>
+              No. A private link limits access to the POT page and keeps it out
+              of public listings. Addresses, balances, and transactions are
+              still publicly visible on Base.
+            </p>
+          </details>
         </div>
       </section>
-
-      <RoadmapSection />
-
-      <section className="closing-section section-wrap">
-        <div className="closing-mark"><PotMark /></div>
-        <p className="eyebrow">Try it without connecting a wallet</p>
-        <h2>Preview your group-fund<br /><span>rules.</span></h2>
-        <a className="button button-dark" href="/create">Open the plan preview <ArrowIcon /></a>
-        <p className="closing-note">This only creates a preview in your browser. It does not create a public pot or collect money.</p>
+      <section className="home-closing section-wrap">
+        <p className="eyebrow">You bring the people. Start with a plan.</p>
+        <h2>
+          That “we should” idea?
+          <br />
+          <span>Give it a pot.</span>
+        </h2>
+        <Link className="button button-primary" href="/create">
+          Plan your pot <span aria-hidden="true">↗</span>
+        </Link>
+        <p>No wallet needed to plan. No money moves.</p>
       </section>
-
       <footer className="site-footer">
-        <a className="brand footer-brand" href="#top" aria-label="POT home">
-          <PotMark /><span>POT</span>
-        </a>
-        <p>Plan together before money moves.</p>
+        <Brand />
+        <p>Good things, pooled.</p>
         <div className="footer-links">
-          <a href="#how-it-works">How it works</a>
-          <a href="/roadmap">Roadmap</a>
+          <Link href="/roadmap">Roadmap</Link>
+          <Link href="/connect">Connect wallet</Link>
+          <Link href="/dashboard">My pots</Link>
         </div>
-        <span className="footer-note">Preview only. No pots or live payments are available.</span>
+        <span className="footer-note">
+          Built for Base · Testnet development
+        </span>
       </footer>
     </main>
   );

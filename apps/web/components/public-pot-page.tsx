@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { formatTokenAmount, getPublicPotState, type PublicPotDetails } from "@/lib/public-pot";
+import { getPublicPotState, type PublicPotDetails } from "@/lib/public-pot";
+import { formatDisplayAmount } from "@/lib/format-amount";
 import { PotContribution } from "@/components/pot-contribution";
 import { PotMetadataEditor } from "@/components/pot-metadata-editor";
 import { PotSettlement } from "@/components/pot-settlement";
@@ -16,7 +17,9 @@ type LoadState =
   | { status: "error"; message: string };
 
 function getPrivateAccessKeyFromUrl(): string | null {
-  const value = new URLSearchParams(window.location.hash.slice(1)).get("access");
+  const value = new URLSearchParams(window.location.hash.slice(1)).get(
+    "access",
+  );
   return value && /^[0-9a-f]{64}$/.test(value) ? value : null;
 }
 
@@ -70,12 +73,12 @@ function isPublicPotDetails(value: unknown): value is PublicPotDetails {
   );
 }
 
-function formattedAmount(amount: string, decimals: number, symbol: string): string {
-  const [whole, fraction = ""] = formatTokenAmount(amount, decimals).split(".");
-  const groupedWhole = BigInt(whole).toLocaleString();
-  const roundedFraction = fraction.slice(0, 2).replace(/0+$/, "");
-  const formatted = roundedFraction ? `${groupedWhole}.${roundedFraction}` : groupedWhole;
-  return `${formatted} ${symbol}`;
+function formattedAmount(
+  amount: string,
+  decimals: number,
+  symbol: string,
+): string {
+  return formatDisplayAmount(amount, decimals, symbol);
 }
 
 function shortAddress(address: string): string {
@@ -91,26 +94,58 @@ function formatDeadline(deadline: string): string {
   }).format(date);
 }
 
-function eventDescription(eventName: string, eventData: Record<string, unknown>, symbol: string, decimals: number) {
+function eventDescription(
+  eventName: string,
+  eventData: Record<string, unknown>,
+  symbol: string,
+  decimals: number,
+) {
   if (eventName === "ContributionMade") {
-    const contributor = typeof eventData.contributor === "string" ? shortAddress(eventData.contributor) : "A contributor";
-    const amount = typeof eventData.amount === "string" ? formattedAmount(eventData.amount, decimals, symbol) : "";
+    const contributor =
+      typeof eventData.contributor === "string"
+        ? shortAddress(eventData.contributor)
+        : "A contributor";
+    const amount =
+      typeof eventData.amount === "string"
+        ? formattedAmount(eventData.amount, decimals, symbol)
+        : "";
     return { title: `${contributor} contributed`, detail: amount };
   }
   if (eventName === "PotPaidOut") {
-    return { title: "Pot paid out", detail: typeof eventData.amount === "string" ? formattedAmount(eventData.amount, decimals, symbol) : "" };
+    return {
+      title: "Pot paid out",
+      detail:
+        typeof eventData.amount === "string"
+          ? formattedAmount(eventData.amount, decimals, symbol)
+          : "",
+    };
   }
   if (eventName === "ContributionRefunded") {
-    const contributor = typeof eventData.contributor === "string" ? shortAddress(eventData.contributor) : "A contributor";
-    const amount = typeof eventData.amount === "string" ? formattedAmount(eventData.amount, decimals, symbol) : "";
+    const contributor =
+      typeof eventData.contributor === "string"
+        ? shortAddress(eventData.contributor)
+        : "A contributor";
+    const amount =
+      typeof eventData.amount === "string"
+        ? formattedAmount(eventData.amount, decimals, symbol)
+        : "";
     return { title: `${contributor} claimed a refund`, detail: amount };
   }
   return { title: "Pot created", detail: "" };
 }
 
 function ActivityMark({ eventName }: { eventName: string }) {
-  const mark = eventName === "PotPaidOut" ? "↗" : eventName === "ContributionRefunded" ? "↩" : "+";
-  return <span className="pot-activity-mark" aria-hidden="true">{mark}</span>;
+  const mark =
+    eventName === "PotPaidOut"
+      ? "↗"
+      : eventName === "ContributionRefunded"
+        ? "↩"
+        : "+";
+  return (
+    <span className="pot-activity-mark" aria-hidden="true">
+      {mark}
+    </span>
+  );
 }
 
 export function PublicPotPage({ address }: Props) {
@@ -126,11 +161,14 @@ export function PublicPotPage({ address }: Props) {
 
     async function loadPot() {
       try {
-        const response = await fetch(`/api/pots/${encodeURIComponent(address)}`, {
-          cache: "no-store",
-          signal: controller.signal,
-          headers: accessKey ? { "x-pot-access-key": accessKey } : undefined,
-        });
+        const response = await fetch(
+          `/api/pots/${encodeURIComponent(address)}`,
+          {
+            cache: "no-store",
+            signal: controller.signal,
+            headers: accessKey ? { "x-pot-access-key": accessKey } : undefined,
+          },
+        );
         const data: unknown = await response.json().catch(() => null);
         if (!response.ok) {
           const message =
@@ -142,7 +180,10 @@ export function PublicPotPage({ address }: Props) {
         }
 
         if (!isPublicPotDetails(data)) {
-          setState({ status: "error", message: "Pot details were returned in an invalid format." });
+          setState({
+            status: "error",
+            message: "Pot details were returned in an invalid format.",
+          });
           return;
         }
 
@@ -151,7 +192,8 @@ export function PublicPotPage({ address }: Props) {
         if (controller.signal.aborted) return;
         setState({
           status: "error",
-          message: error instanceof Error ? error.message : "Could not load this pot.",
+          message:
+            error instanceof Error ? error.message : "Could not load this pot.",
         });
       }
     }
@@ -180,7 +222,13 @@ export function PublicPotPage({ address }: Props) {
 
   if (state.status === "loading") {
     return (
-      <div className="public-pot-state" role="status" aria-live="polite">
+      <div
+        className="public-pot-state"
+        id="main-content"
+        tabIndex={-1}
+        role="status"
+        aria-live="polite"
+      >
         <span className="pot-state-indicator" />
         <h1>Loading this pot…</h1>
         <p>Checking its current balance and rules on Base Sepolia.</p>
@@ -191,12 +239,19 @@ export function PublicPotPage({ address }: Props) {
 
   if (state.status === "error") {
     return (
-      <div className="public-pot-state" role="alert">
+      <div
+        className="public-pot-state"
+        id="main-content"
+        tabIndex={-1}
+        role="alert"
+      >
         <span className="pot-state-indicator pot-state-indicator-error">!</span>
         <p className="pot-eyebrow">POT LINK</p>
         <h1>We can’t open this pot.</h1>
         <p>{state.message}</p>
-        <Link className="pot-secondary-link" href="/">Return to POT <span aria-hidden="true">→</span></Link>
+        <Link className="pot-secondary-link" href="/">
+          Return to POT <span aria-hidden="true">→</span>
+        </Link>
       </div>
     );
   }
@@ -205,34 +260,49 @@ export function PublicPotPage({ address }: Props) {
   const total = BigInt(pot.totalContributed);
   const target = BigInt(pot.targetAmount);
   const isCrowdfunding = pot.fundingMode === 2 || pot.fundingMode === 3;
-  const progress = pot.targetBased && target > BigInt(0)
-    ? Number((total * BigInt(10_000)) / target) / 100
-    : null;
+  const progress =
+    pot.targetBased && target > BigInt(0)
+      ? Number((total * BigInt(10_000)) / target) / 100
+      : null;
   const progressWidth = Math.min(progress ?? 0, 100);
   const status = getPublicPotState(pot);
-  const visibleEvents = pot.events.filter((event) => event.eventName !== "PotCreated");
+  const visibleEvents = pot.events.filter(
+    (event) => event.eventName !== "PotCreated",
+  );
 
   return (
-    <div className="public-pot-content">
+    <div className="public-pot-content" id="main-content" tabIndex={-1}>
       <section className="public-pot-summary">
         <div className="public-pot-main">
           <div className="pot-status-line">
-            <span className={`pot-state-indicator${pot.paidOut ? " pot-state-indicator-complete" : ""}`} />
+            <span
+              className={`pot-state-indicator${pot.paidOut ? " pot-state-indicator-complete" : ""}`}
+            />
             <span>{status}</span>
           </div>
           <p className="pot-eyebrow">GROUP FUND · BASE SEPOLIA TEST NETWORK</p>
           <h1>{pot.name}</h1>
-          {pot.description && <p className="public-pot-description">{pot.description}</p>}
+          {pot.description && (
+            <p className="public-pot-description">{pot.description}</p>
+          )}
           <div className="pot-organizer">
-            <span className="pot-organizer-mark" aria-hidden="true">P</span>
+            <span className="pot-organizer-mark" aria-hidden="true">
+              P
+            </span>
             <span>
               Organized by{" "}
               <Link href={`/organizer/${pot.organizer}`}>
-                <strong title={pot.organizer}>{shortAddress(pot.organizer)}</strong>
+                <strong title={pot.organizer}>
+                  {shortAddress(pot.organizer)}
+                </strong>
               </Link>
             </span>
           </div>
-          {!pot.isPublic && <p className="pot-private-badge">Private · anyone with this link can open it</p>}
+          {!pot.isPublic && (
+            <p className="pot-private-badge">
+              Private · anyone with this link can open it
+            </p>
+          )}
           <SharePotLink
             name={pot.name}
             address={pot.address}
@@ -252,14 +322,30 @@ export function PublicPotPage({ address }: Props) {
         <aside className="pot-funding-panel" aria-label="Pot funding summary">
           <div className="pot-funding-heading">
             <span>Total contributed</span>
-            <span className="pot-chain-badge"><i /> Base Sepolia</span>
+            <span className="pot-chain-badge">
+              <i /> Base Sepolia
+            </span>
           </div>
-          <p className="pot-collected">{formattedAmount(pot.totalContributed, pot.tokenDecimals, pot.tokenSymbol)}</p>
+          <p className="pot-collected">
+            {formattedAmount(
+              pot.totalContributed,
+              pot.tokenDecimals,
+              pot.tokenSymbol,
+            )}
+          </p>
           {pot.targetBased && (
             <>
               <div className="pot-target-row">
-                <span>{isCrowdfunding ? "Fundraising goal" : "Group goal"}</span>
-                <strong>{formattedAmount(pot.targetAmount, pot.tokenDecimals, pot.tokenSymbol)}</strong>
+                <span>
+                  {isCrowdfunding ? "Fundraising goal" : "Group goal"}
+                </span>
+                <strong>
+                  {formattedAmount(
+                    pot.targetAmount,
+                    pot.tokenDecimals,
+                    pot.tokenSymbol,
+                  )}
+                </strong>
               </div>
               <div
                 className="pot-progress-track"
@@ -273,7 +359,14 @@ export function PublicPotPage({ address }: Props) {
               </div>
               <div className="pot-progress-label">
                 <span>{progress?.toFixed(1)}% funded</span>
-                <span>{formattedAmount((target > total ? target - total : BigInt(0)).toString(), pot.tokenDecimals, pot.tokenSymbol)} to go</span>
+                <span>
+                  {formattedAmount(
+                    (target > total ? target - total : BigInt(0)).toString(),
+                    pot.tokenDecimals,
+                    pot.tokenSymbol,
+                  )}{" "}
+                  to go
+                </span>
               </div>
             </>
           )}
@@ -293,35 +386,59 @@ export function PublicPotPage({ address }: Props) {
           {isCrowdfunding && (
             <div className="pot-rule-row">
               <span>Approved payout wallet</span>
-              <strong className="pot-payout-recipient" title={pot.payoutRecipient}>
+              <strong
+                className="pot-payout-recipient"
+                title={pot.payoutRecipient}
+              >
                 {pot.payoutRecipient}
               </strong>
             </div>
           )}
           <div className="pot-rule-row">
             <span>Deadline</span>
-            <strong>{pot.deadline === "0" ? "No deadline" : formatDeadline(pot.deadline)}</strong>
+            <strong>
+              {pot.deadline === "0"
+                ? "No deadline"
+                : formatDeadline(pot.deadline)}
+            </strong>
           </div>
           <div className="pot-rule-row">
             <span>Smallest contribution</span>
-            <strong>{formattedAmount(pot.minimumContribution, pot.tokenDecimals, pot.tokenSymbol)}</strong>
+            <strong>
+              {formattedAmount(
+                pot.minimumContribution,
+                pot.tokenDecimals,
+                pot.tokenSymbol,
+              )}
+            </strong>
           </div>
           <div className="pot-rule-row">
             <span>Current pot balance</span>
-            <strong>{formattedAmount(pot.currentBalance, pot.tokenDecimals, pot.tokenSymbol)}</strong>
+            <strong>
+              {formattedAmount(
+                pot.currentBalance,
+                pot.tokenDecimals,
+                pot.tokenSymbol,
+              )}
+            </strong>
           </div>
           {isCrowdfunding && (
             <p className="pot-crowdfunding-notice">
-              Crowdfunding contributions cannot be refunded. Only the approved wallet can withdraw
-              the funds.
+              Crowdfunding contributions cannot be refunded. Only the approved
+              wallet can withdraw the funds.
             </p>
           )}
-          <PotContribution pot={pot} onConfirmed={() => setRefreshKey((current) => current + 1)} />
+          <PotContribution
+            pot={pot}
+            onConfirmed={() => setRefreshKey((current) => current + 1)}
+          />
         </aside>
       </section>
 
       <section className="pot-rules-strip" aria-label="Settlement conditions">
-        <div className="pot-rule-symbol" aria-hidden="true">i</div>
+        <div className="pot-rule-symbol" aria-hidden="true">
+          i
+        </div>
         <div>
           <h2>
             {isCrowdfunding
@@ -336,14 +453,20 @@ export function PublicPotPage({ address }: Props) {
               : pot.fundingMode === 1
                 ? "There is no goal, deadline, or refund rule. Once someone has contributed, the organizer can withdraw the money."
                 : pot.fundingMode === 2
-                ? "The goal is a target, not a cap. Contributions stay open until the deadline. Then the approved wallet can withdraw all funds, whether or not the goal was reached. Contributors cannot claim refunds."
-                : "The goal is a target, not a cap. The approved wallet can withdraw the current balance at any time, and contributions stay open until the deadline. Contributors cannot claim refunds."}
+                  ? "The goal is a target, not a cap. Contributions stay open until the deadline. Then the approved wallet can withdraw all funds, whether or not the goal was reached. Contributors cannot claim refunds."
+                  : "The goal is a target, not a cap. The approved wallet can withdraw the current balance at any time, and contributions stay open until the deadline. Contributors cannot claim refunds."}
           </p>
         </div>
-        {pot.refundEligible && <span className="pot-refund-status">You can claim your contribution back</span>}
+        {pot.refundEligible && (
+          <span className="pot-refund-status">
+            You can claim your contribution back
+          </span>
+        )}
         {pot.payoutEligible && (
           <span className="pot-refund-status">
-            {isCrowdfunding ? "Approved wallet can withdraw" : "Organizer can withdraw"}
+            {isCrowdfunding
+              ? "Approved wallet can withdraw"
+              : "Organizer can withdraw"}
           </span>
         )}
       </section>
@@ -370,10 +493,15 @@ export function PublicPotPage({ address }: Props) {
         </div>
         {visibleEvents.length === 0 ? (
           <div className="pot-activity-empty">
-            <span className="pot-empty-mark" aria-hidden="true">—</span>
+            <span className="pot-empty-mark" aria-hidden="true">
+              —
+            </span>
             <div>
               <h3>No money has moved in this pot yet</h3>
-              <p>Confirmed contributions, withdrawals, and claimed refunds will appear here after they are recorded and added to POT’s list.</p>
+              <p>
+                Confirmed contributions, withdrawals, and claimed refunds will
+                appear here after they are recorded and added to POT’s list.
+              </p>
             </div>
           </div>
         ) : (
@@ -390,9 +518,15 @@ export function PublicPotPage({ address }: Props) {
                   <ActivityMark eventName={event.eventName} />
                   <div className="pot-event-copy">
                     <strong>{description.title}</strong>
-                    <span>Block {BigInt(event.blockNumber).toLocaleString()}</span>
+                    <span>
+                      Block {BigInt(event.blockNumber).toLocaleString()}
+                    </span>
                   </div>
-                  {description.detail && <span className="pot-event-amount">{description.detail}</span>}
+                  {description.detail && (
+                    <span className="pot-event-amount">
+                      {description.detail}
+                    </span>
+                  )}
                   <a
                     className="pot-event-link"
                     href={`${pot.explorerUrl}/tx/${event.transactionHash}`}
@@ -422,7 +556,11 @@ export function PublicPotPage({ address }: Props) {
         {pot.isPublic
           ? "View this pot’s public record on BaseScan: "
           : "Private link access applies only in POT. This pot’s address and transactions are public on Base: "}
-        <a href={`${pot.explorerUrl}/address/${pot.address}`} target="_blank" rel="noreferrer">
+        <a
+          href={`${pot.explorerUrl}/address/${pot.address}`}
+          target="_blank"
+          rel="noreferrer"
+        >
           {shortAddress(pot.address)} ↗
         </a>
       </p>
