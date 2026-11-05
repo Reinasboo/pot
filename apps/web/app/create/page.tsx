@@ -1,35 +1,35 @@
+import { pageMetadata } from "@/lib/site-metadata";
+import { Brand } from "@/components/brand";
 import Link from "next/link";
-import { PotCreationDraft } from "@/components/pot-creation-draft";
+import { Suspense } from "react";
+import { PotPlanner } from "@/components/pot-planner";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "Plan a pot",
   description: "Preview clear funding and settlement rules for a shared pot.",
-};
+  path: "/create",
+});
 
 export default function CreatePage() {
   return (
     <main className="pot-page-shell">
       <header className="pot-page-header">
-        <Link className="brand" href="/" aria-label="POT home">
-          <span className="brand-mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
-          <span>POT</span>
+        <Brand className="brand" href="/" />
+        <Link className="pot-create-back-link" href="/dashboard">
+          My pots
         </Link>
-        <Link className="pot-create-back-link" href="/dashboard">My pots</Link>
       </header>
-      <PotCreationDraft />
+      <Suspense
+        fallback={
+          <div className="app-state" role="status">
+            Opening your planner…
+          </div>
+        }
+      >
+        <PotPlanner />
+      </Suspense>
       <footer className="pot-page-footer">
-        <Link className="brand footer-brand" href="/" aria-label="POT home">
-          <span className="brand-mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
-          <span>POT</span>
-        </Link>
+        <Brand className="brand footer-brand" href="/" />
         <span>Shared plans, clear rules.</span>
       </footer>
     </main>

@@ -26,3 +26,7 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 supabase/.temp/
+
+# Reproducible intermediate score and local film render caches
+apps/film/public/score.wav
+apps/film/.remotion/

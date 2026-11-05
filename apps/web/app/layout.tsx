@@ -1,31 +1,39 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import "@fontsource-variable/dm-sans";
-import "@fontsource/dm-serif-display";
+import "@fontsource-variable/geist";
 import { Providers } from "./providers";
 import "./globals.css";
+import "./home.css";
+import {
+  brandDescription,
+  brandTitle,
+  getSiteUrl,
+  pageMetadata,
+} from "@/lib/site-metadata";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://potonbase.vercel.app"),
+  ...pageMetadata({
+    title: brandTitle,
+    description: brandDescription,
+    path: "/",
+  }),
+  metadataBase: getSiteUrl(),
   title: {
-    default: "POT — Money moves better together",
+    default: "POT — Good things, pooled.",
     template: "%s | POT",
   },
   description:
-    "POT is a shared space for groups to coordinate contributions, track progress, and reach goals together.",
+    "Plan a shared gift, trip, or fundraiser with clear money rules. Preview and share your plan without a wallet. Payments require testnet deployment.",
   applicationName: "POT",
-  openGraph: {
-    title: "POT — Money moves better together",
-    description:
-      "Create a pot, bring your people together, and reach shared goals with transparent contributions.",
-    type: "website",
-  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
+        <a className="skip-link" href="#main-content">
+          Skip to content
+        </a>
         <Providers>{children}</Providers>
       </body>
     </html>

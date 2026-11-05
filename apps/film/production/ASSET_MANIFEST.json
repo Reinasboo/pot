@@ -1,0 +1,58 @@
+[
+  {
+    "path": "public/screens/community-card.png",
+    "width": 956,
+    "height": 1184,
+    "source": "actual local POT interface capture",
+    "role": "source screenshot"
+  },
+  {
+    "path": "public/screens/gift-card.png",
+    "width": 956,
+    "height": 1184,
+    "source": "actual local POT interface capture",
+    "role": "source screenshot"
+  },
+  {
+    "path": "public/screens/home-raw.png",
+    "width": 3200,
+    "height": 8158,
+    "source": "actual local POT interface capture",
+    "role": "source screenshot"
+  },
+  {
+    "path": "public/screens/mobile-hero.png",
+    "width": 780,
+    "height": 980,
+    "source": "actual local POT interface capture",
+    "role": "source screenshot"
+  },
+  {
+    "path": "public/screens/plan-fields.png",
+    "width": 1110,
+    "height": 940,
+    "source": "actual local POT interface capture",
+    "role": "source screenshot"
+  },
+  {
+    "path": "public/screens/plan-summary.png",
+    "width": 724,
+    "height": 916,
+    "source": "actual local POT interface capture",
+    "role": "source screenshot"
+  },
+  {
+    "path": "public/screens/rules.png",
+    "width": 1112,
+    "height": 798,
+    "source": "actual local POT interface capture",
+    "role": "source screenshot"
+  },
+  {
+    "path": "public/screens/trip-card.png",
+    "width": 956,
+    "height": 1184,
+    "source": "actual local POT interface capture",
+    "role": "source screenshot"
+  }
+]

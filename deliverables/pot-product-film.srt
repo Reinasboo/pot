@@ -1,0 +1,139 @@
+1
+00:00:01,200 --> 00:00:03,609
+Every group has that one plan.
+
+2
+00:00:04,039 --> 00:00:05,243
+The weekend away.
+
+3
+00:00:05,415 --> 00:00:06,705
+The birthday surprise.
+
+4
+00:00:07,135 --> 00:00:10,920
+The idea everyone loves, until someone has to
+
+5
+00:00:11,006 --> 00:00:11,953
+organise the money.
+
+6
+00:00:12,641 --> 00:00:13,845
+Meet POT.
+
+7
+00:00:14,361 --> 00:00:16,598
+One shared pot for a shared goal.
+
+8
+00:00:17,028 --> 00:00:18,705
+Good things, pooled.
+
+9
+00:00:19,006 --> 00:00:21,157
+Start with a name, a target, and a
+
+10
+00:00:21,243 --> 00:00:21,974
+deadline.
+
+11
+00:00:22,189 --> 00:00:25,114
+Choose the money rules before anyone chips in.
+
+12
+00:00:25,200 --> 00:00:28,211
+Then share one clear plan with your people.
+
+13
+00:00:28,469 --> 00:00:31,394
+Contributions use USDC on Base.
+
+14
+00:00:31,824 --> 00:00:34,791
+Funding progress follows confirmed transactions.
+
+15
+00:00:35,006 --> 00:00:37,157
+When the goal is reached, the organiser can
+
+16
+00:00:37,415 --> 00:00:37,888
+withdraw.
+
+17
+00:00:38,103 --> 00:00:40,856
+If a refundable goal is missed, contributors can
+
+18
+00:00:40,985 --> 00:00:42,146
+claim their money back.
+
+19
+00:00:42,404 --> 00:00:45,157
+Crowdfunding pots make the payout wallet and withdrawal
+
+20
+00:00:45,243 --> 00:00:47,006
+timing clear from the start.
+
+21
+00:00:47,222 --> 00:00:50,103
+But the opportunity is bigger than one collection.
+
+22
+00:00:50,318 --> 00:00:54,103
+Imagine creator communities, event organisers, and other apps
+
+23
+00:00:54,189 --> 00:00:57,329
+using POT as their shared payments infrastructure.
+
+24
+00:00:57,544 --> 00:01:00,383
+A proposed POT token could help the community
+
+25
+00:01:00,555 --> 00:01:04,856
+govern that network: allocate grants, sponsor transaction fees,
+
+26
+00:01:04,899 --> 00:01:08,598
+and reward useful contributions from organisers and builders.
+
+27
+00:01:08,813 --> 00:01:12,856
+The principle is simple: reward value created, not
+
+28
+00:01:12,942 --> 00:01:14,060
+money moved.
+
+29
+00:01:14,146 --> 00:01:16,985
+USDC remains the money in the pot.
+
+30
+00:01:17,028 --> 00:01:19,824
+The token supports coordination around it.
+
+31
+00:01:19,953 --> 00:01:22,146
+From one birthday gift to a network of
+
+32
+00:01:22,318 --> 00:01:23,738
+shared possibilities.
+
+33
+00:01:24,039 --> 00:01:25,114
+Big plans.
+
+34
+00:01:25,329 --> 00:01:26,963
+One shared pot.
+
+35
+00:01:27,178 --> 00:01:27,738
+POT.

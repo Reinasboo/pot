@@ -1,0 +1,26 @@
+{
+  "name": "pot-product-film",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "preview": "remotion studio src/index.tsx",
+    "typecheck": "tsc --noEmit",
+    "capture": "node scripts/capture.mjs",
+    "stills": "node scripts/render.mjs stills",
+    "render": "node scripts/render.mjs video",
+    "screenshots": "node scripts/render.mjs screenshots"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.541",
+    "@remotion/cli": "4.0.541",
+    "@remotion/media": "4.0.541",
+    "@remotion/renderer": "4.0.541",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "remotion": "4.0.541"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}
