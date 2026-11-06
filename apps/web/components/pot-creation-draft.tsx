@@ -589,6 +589,11 @@ export function PotCreationDraft({
               share the pot in POT. The pot address and transactions are still
               public on Base.
             </p>
+            <p className="pot-form-hint">
+              This choice is part of your creation plan. After the pot is
+              indexed, you’ll confirm and sign it to publish the access
+              settings.
+            </p>
           </fieldset>
 
           {errors.length > 0 && (
@@ -819,9 +824,9 @@ export function PotCreationDraft({
           walletAddress && (
             <div className="pot-create-published-metadata">
               <p>
-                Your pot is on Base Sepolia. It will appear in public listings
-                after indexing; then choose who can open its POT page and sign
-                to publish the settings.
+                Your pot is on Base Sepolia. The access choice you made above
+                is selected below; after indexing, confirm and sign it to
+                publish the settings.
               </p>
               <PotMetadataEditor
                 address={createdPotAddress}

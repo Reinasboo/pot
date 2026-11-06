@@ -166,7 +166,9 @@ export function PotMetadataEditor({
     <section className="pot-metadata-editor" aria-labelledby="pot-metadata-editor-title">
       <h2 id="pot-metadata-editor-title">Who can open this pot?</h2>
       <p>
-        Choose whether this pot can be found by everyone or opened only with a private link.
+        {isPersisted
+          ? "Choose whether this pot can be found by everyone or opened only with a private link."
+          : `Your ${initialIsPublic ? "public" : "private-link"} choice from the creation form is selected below. Confirm and sign it after indexing to apply the access settings.`}{" "}
         Addresses and transactions remain visible on Base.
       </p>
       {!onSupportedNetwork ? (
