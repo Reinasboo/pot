@@ -4,8 +4,8 @@
 
 The repository includes Supabase migrations and a server-only Next.js indexer endpoint. A
 Base Sepolia Supabase project has been provisioned and all migrations have been applied. The
-indexer has not yet been run because no POT factory is deployed or configured. Supabase is not
-the financial source of truth; contract reads and events remain authoritative.
+POT factory is deployed and configured, and GitHub Actions invokes the indexer every five minutes.
+Supabase is not the financial source of truth; contract reads and events remain authoritative.
 
 The migration creates:
 
@@ -36,6 +36,13 @@ Set these server-side environment variables in `apps/web`:
 Apply migrations before invoking the indexer or publishing pot descriptions. Migrations are
 currently applied to the configured project. The metadata editor also requires the service role
 key; it is used only by server routes and never sent to the browser.
+
+The `Index Base Sepolia pots` GitHub Actions workflow runs every five minutes and can also be
+started manually. Set the repository Actions secret `INDEXER_CRON_SECRET` to the same value as
+the Vercel Production `INDEXER_CRON_SECRET`. The workflow sends an authenticated `POST` to
+`https://potonbase.vercel.app/api/indexer`; its concurrency group prevents overlapping runs.
+Scheduled GitHub Actions may be delayed, so check the workflow run history if indexing falls
+behind.
 
 ## Run a batch
 
