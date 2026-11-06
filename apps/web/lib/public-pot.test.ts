@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getAddress } from "viem";
-import { getPublicParticipatedPots, getPublicPot } from "./public-pot";
+import {
+  getPublicOrganizerPots,
+  getPublicParticipatedPots,
+  getPublicPot,
+} from "./public-pot";
 
 const mocks = vi.hoisted(() => ({
   getChainId: vi.fn(),
@@ -72,7 +76,7 @@ describe("getPublicParticipatedPots", () => {
           return Response.json([
             {
               pot_address: potB,
-              block_number: "250",
+              block_number: 250,
               event_data: { contributor },
             },
             {
@@ -97,13 +101,13 @@ describe("getPublicParticipatedPots", () => {
             address: potA,
             name: "Pot A",
             target_based: true,
-            created_block: "100",
+            created_block: 100,
           },
           {
             address: potB,
             name: "Pot B",
             target_based: false,
-            created_block: "110",
+            created_block: 110,
           },
         ]);
       }),
@@ -191,6 +195,53 @@ describe("getPublicParticipatedPots", () => {
   });
 });
 
+describe("getPublicOrganizerPots", () => {
+  it("accepts and normalizes PostgreSQL bigint values returned as JSON numbers", async () => {
+    vi.stubEnv("BASE_SEPOLIA_RPC_URL", "https://sepolia.base.org");
+    vi.stubEnv("POT_FACTORY_ADDRESS", "0x5555555555555555555555555555555555555555");
+    vi.stubEnv("SUPABASE_URL", "https://pot-project.supabase.co");
+    vi.stubEnv("SUPABASE_ANON_KEY", "public-anon-key");
+    mocks.getChainId.mockResolvedValue(84532);
+    mocks.getBlockNumber.mockResolvedValue(BigInt(500));
+    mocks.readContract.mockImplementation(({ functionName }: { functionName: string }) => {
+      if (functionName === "token") return Promise.resolve(usdc);
+      if (functionName === "decimals") return Promise.resolve(6);
+      if (functionName === "symbol") return Promise.resolve("USDC");
+      throw new Error(`Unexpected contract read: ${functionName}`);
+    });
+    mocks.multicall.mockResolvedValue([
+      true,
+      0,
+      usdc,
+      BigInt(2_000_000),
+      BigInt(1_500_000),
+      true,
+      false,
+    ]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json([
+          {
+            address: potA,
+            name: "Pot A",
+            target_based: true,
+            created_block: 55238534,
+          },
+        ]),
+      ),
+    );
+
+    await expect(getPublicOrganizerPots(contributor)).resolves.toMatchObject([
+      {
+        address: getAddress(potA),
+        createdBlock: "55238534",
+        escrowBalance: "2000000",
+      },
+    ]);
+  });
+});
+
 describe("private pot access", () => {
   it("requires the designated key before returning private pot details or events", async () => {
     vi.stubEnv("BASE_SEPOLIA_RPC_URL", "https://sepolia.base.org");
@@ -244,7 +295,17 @@ describe("private pot access", () => {
       if (url.pathname.endsWith("/private_pot_access")) {
         return Response.json([{ access_key_hash: keyHash }]);
       }
-      if (url.pathname.endsWith("/pot_events")) return Response.json([]);
+      if (url.pathname.endsWith("/pot_events")) {
+        return Response.json([
+          {
+            transaction_hash: `0x${"a".repeat(64)}`,
+            log_index: 0,
+            block_number: 55238534,
+            event_name: "PotCreated",
+            event_data: {},
+          },
+        ]);
+      }
       return Response.json([]);
     }));
 
@@ -259,6 +320,7 @@ describe("private pot access", () => {
     const pot = await getPublicPot(potA, privateAccessKey);
     expect(pot.isPublic).toBe(false);
     expect(pot.description).toBe("For invited friends.");
+    expect(pot.events[0].blockNumber).toBe("55238534");
     expect(requestedPaths).toContain("/rest/v1/pot_events");
   });
 });

@@ -65,8 +65,7 @@ function isContributionSearchRows(value: unknown): value is ContributionSearchRo
         isRecord(row) &&
         typeof row.pot_address === "string" &&
         /^0x[\da-fA-F]{40}$/.test(row.pot_address) &&
-        typeof row.block_number === "string" &&
-        /^\d+$/.test(row.block_number) &&
+        isDatabaseInteger(row.block_number) &&
         isRecord(row.event_data) &&
         typeof row.event_data.contributor === "string" &&
         /^0x[\da-fA-F]{40}$/.test(row.event_data.contributor),
@@ -170,7 +169,7 @@ type PrivatePotAccessRow = {
 type PotEventRow = {
   transaction_hash: `0x${string}`;
   log_index: number;
-  block_number: string;
+  block_number: string | number;
   event_name: "PotCreated" | "ContributionMade" | "PotPaidOut" | "ContributionRefunded";
   event_data: Record<string, unknown>;
 };
@@ -179,7 +178,7 @@ type OrganizerPotRow = {
   address: `0x${string}`;
   name: string;
   target_based: boolean;
-  created_block: string;
+  created_block: string | number;
 };
 
 type PublicDiscoveryPotRow = {
@@ -188,13 +187,24 @@ type PublicDiscoveryPotRow = {
   name: string;
   description: string;
   cover_image_url: string | null;
-  target_amount: string;
-  deadline: string;
-  created_block: string;
+  target_amount: string | number;
+  deadline: string | number;
+  created_block: string | number;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isDatabaseInteger(value: unknown): value is string | number {
+  return (
+    (typeof value === "string" && /^\d+$/.test(value)) ||
+    (typeof value === "number" && Number.isSafeInteger(value) && value >= 0)
+  );
+}
+
+function databaseIntegerString(value: string | number): string {
+  return String(value);
 }
 
 function isMetadataRows(value: unknown): value is PotMetadataRow[] {
@@ -230,9 +240,10 @@ function isEventRows(value: unknown): value is PotEventRow[] {
         isRecord(row) &&
         typeof row.transaction_hash === "string" &&
         /^0x[\da-fA-F]{64}$/.test(row.transaction_hash) &&
-        Number.isInteger(row.log_index) &&
-        typeof row.block_number === "string" &&
-        /^\d+$/.test(row.block_number) &&
+        typeof row.log_index === "number" &&
+        Number.isSafeInteger(row.log_index) &&
+        row.log_index >= 0 &&
+        isDatabaseInteger(row.block_number) &&
         (row.event_name === "PotCreated" ||
           row.event_name === "ContributionMade" ||
           row.event_name === "PotPaidOut" ||
@@ -252,8 +263,7 @@ function isOrganizerPotRows(value: unknown): value is OrganizerPotRow[] {
         /^0x[\da-fA-F]{40}$/.test(row.address) &&
         typeof row.name === "string" &&
         typeof row.target_based === "boolean" &&
-        typeof row.created_block === "string" &&
-        /^\d+$/.test(row.created_block),
+        isDatabaseInteger(row.created_block),
     )
   );
 }
@@ -271,12 +281,9 @@ function isPublicDiscoveryPotRows(value: unknown): value is PublicDiscoveryPotRo
         typeof row.name === "string" &&
         typeof row.description === "string" &&
         (typeof row.cover_image_url === "string" || row.cover_image_url === null) &&
-        typeof row.target_amount === "string" &&
-        /^\d+$/.test(row.target_amount) &&
-        typeof row.deadline === "string" &&
-        /^\d+$/.test(row.deadline) &&
-        typeof row.created_block === "string" &&
-        /^\d+$/.test(row.created_block),
+        isDatabaseInteger(row.target_amount) &&
+        isDatabaseInteger(row.deadline) &&
+        isDatabaseInteger(row.created_block),
     )
   );
 }
@@ -835,7 +842,7 @@ export async function getPublicPot(
     events: eventRows.map((event) => ({
       transactionHash: event.transaction_hash,
       logIndex: event.log_index,
-      blockNumber: event.block_number,
+      blockNumber: databaseIntegerString(event.block_number),
       eventName: event.event_name,
       eventData: event.event_data,
     })),
@@ -877,7 +884,7 @@ export async function getPublicOrganizerPots(
       name: row.name,
       fundingMode: amount.fundingMode,
       targetBased: row.target_based,
-      createdBlock: row.created_block,
+      createdBlock: databaseIntegerString(row.created_block),
       escrowBalance: amount.escrowBalance,
       totalContributed: amount.totalContributed,
       contributionOpen: amount.contributionOpen,
@@ -921,9 +928,9 @@ export async function getPublicDiscoveryPots(queryInput = ""): Promise<PublicDis
       name: row.name,
       description: row.description,
       coverImageUrl: row.cover_image_url,
-      targetAmount: row.target_amount,
-      deadline: row.deadline,
-      createdBlock: row.created_block,
+      targetAmount: databaseIntegerString(row.target_amount),
+      deadline: databaseIntegerString(row.deadline),
+      createdBlock: databaseIntegerString(row.created_block),
       fundingMode: amount.fundingMode,
       escrowBalance: amount.escrowBalance,
       totalContributed: amount.totalContributed,
@@ -961,7 +968,10 @@ export async function getPublicParticipatedPots(
     if (event.event_data.contributor.toLowerCase() !== contributor) continue;
     const potAddress = event.pot_address.toLowerCase();
     if (!latestContributionBlockByPot.has(potAddress)) {
-      latestContributionBlockByPot.set(potAddress, event.block_number);
+      latestContributionBlockByPot.set(
+        potAddress,
+        databaseIntegerString(event.block_number),
+      );
     }
   }
   const potAddresses = [...latestContributionBlockByPot.keys()].slice(0, MAX_PAGE_SIZE);
@@ -991,7 +1001,7 @@ export async function getPublicParticipatedPots(
       name: pot.name,
       fundingMode: amount.fundingMode,
       targetBased: pot.target_based,
-      createdBlock: pot.created_block,
+      createdBlock: databaseIntegerString(pot.created_block),
       lastContributionBlock,
       contributedAmount: amount.contributedAmount,
       escrowBalance: amount.escrowBalance,
