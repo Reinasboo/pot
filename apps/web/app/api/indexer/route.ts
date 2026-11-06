@@ -52,6 +52,8 @@ type EventRow = {
 };
 
 const maxBatchesPerRequest = 5;
+const maxRpcBlockRange = BigInt(200);
+const oneBlock = BigInt(1);
 
 class IndexerError extends Error {
   constructor(
@@ -343,88 +345,115 @@ async function indexBatch(
     chain: baseSepolia,
     transport: http(environment.rpcUrl),
   });
-  const factoryLogs = await client.getLogs({
-    address: environment.factoryAddress,
-    event: potCreatedEvent,
-    fromBlock,
-    toBlock,
-  });
+  const potAddresses = new Set(await getAllPotAddresses(environment));
+  let indexedEventCount = 0;
 
-  const createdPotRows = factoryLogs.map((log) => {
-    const args = log.args;
-    if (
-      !args.pot ||
-      !args.organizer ||
-      args.targetBased === undefined ||
-      args.targetAmount === undefined ||
-      args.deadline === undefined ||
-      args.minimumContribution === undefined ||
-      args.name === undefined ||
-      args.metadataURI === undefined ||
-      !log.transactionHash ||
-      log.logIndex === null ||
-      log.blockNumber === null
-    ) {
-      throw new IndexerError("Factory emitted an incomplete PotCreated event");
+  for (let rangeStart = fromBlock; rangeStart <= toBlock; ) {
+    const rangeEnd =
+      rangeStart + maxRpcBlockRange - oneBlock > toBlock
+        ? toBlock
+        : rangeStart + maxRpcBlockRange - oneBlock;
+    const factoryLogs = await client.getLogs({
+      address: environment.factoryAddress,
+      event: potCreatedEvent,
+      fromBlock: rangeStart,
+      toBlock: rangeEnd,
+    });
+
+    const createdPotRows = factoryLogs.map((log) => {
+      const args = log.args;
+      if (
+        !args.pot ||
+        !args.organizer ||
+        args.targetBased === undefined ||
+        args.targetAmount === undefined ||
+        args.deadline === undefined ||
+        args.minimumContribution === undefined ||
+        args.name === undefined ||
+        args.metadataURI === undefined ||
+        !log.transactionHash ||
+        log.logIndex === null ||
+        log.blockNumber === null
+      ) {
+        throw new IndexerError("Factory emitted an incomplete PotCreated event");
+      }
+
+      return {
+        chain_id: baseSepolia.id,
+        address: args.pot.toLowerCase(),
+        organizer: args.organizer.toLowerCase(),
+        target_based: args.targetBased,
+        target_amount: args.targetAmount.toString(),
+        deadline: args.deadline.toString(),
+        minimum_contribution: args.minimumContribution.toString(),
+        name: args.name,
+        metadata_uri: args.metadataURI,
+        is_public: false,
+        created_block: log.blockNumber.toString(),
+        created_transaction_hash: log.transactionHash.toLowerCase(),
+        created_log_index: log.logIndex,
+      };
+    });
+
+    if (createdPotRows.length > 0) {
+      await upsertRows(
+        environment,
+        "pots",
+        createdPotRows,
+        "chain_id,address",
+        "ignore-duplicates",
+      );
+      for (const row of createdPotRows) potAddresses.add(getAddress(row.address));
     }
 
-    return {
-      chain_id: baseSepolia.id,
-      address: args.pot.toLowerCase(),
-      organizer: args.organizer.toLowerCase(),
-      target_based: args.targetBased,
-      target_amount: args.targetAmount.toString(),
-      deadline: args.deadline.toString(),
-      minimum_contribution: args.minimumContribution.toString(),
-      name: args.name,
-      metadata_uri: args.metadataURI,
-      is_public: false,
-      created_block: log.blockNumber.toString(),
-      created_transaction_hash: log.transactionHash.toLowerCase(),
-      created_log_index: log.logIndex,
-    };
-  });
+    const indexedEvents: EventRow[] = factoryLogs.map((log) => {
+      if (!log.args.pot) throw new IndexerError("Factory emitted a PotCreated event without a pot");
+      return makeEventRow(log, "PotCreated", log.args.pot);
+    });
 
-  if (createdPotRows.length > 0) {
+    const addressList = [...potAddresses];
+    for (let offset = 0; offset < addressList.length; offset += 100) {
+      const addressBatch = addressList.slice(offset, offset + 100);
+      const [contributions, payouts, refunds] = await Promise.all([
+        client.getLogs({
+          address: addressBatch,
+          event: contributionEvent,
+          fromBlock: rangeStart,
+          toBlock: rangeEnd,
+        }),
+        client.getLogs({
+          address: addressBatch,
+          event: payoutEvent,
+          fromBlock: rangeStart,
+          toBlock: rangeEnd,
+        }),
+        client.getLogs({
+          address: addressBatch,
+          event: refundEvent,
+          fromBlock: rangeStart,
+          toBlock: rangeEnd,
+        }),
+      ]);
+
+      indexedEvents.push(
+        ...contributions.map((log) => makeEventRow(log, "ContributionMade")),
+        ...payouts.map((log) => makeEventRow(log, "PotPaidOut")),
+        ...refunds.map((log) => makeEventRow(log, "ContributionRefunded")),
+      );
+    }
+
     await upsertRows(
       environment,
-      "pots",
-      createdPotRows,
-      "chain_id,address",
-      "ignore-duplicates",
+      "pot_events",
+      indexedEvents,
+      "chain_id,transaction_hash,log_index",
+      "merge-duplicates",
     );
+    indexedEventCount += indexedEvents.length;
+    rangeStart = rangeEnd + oneBlock;
   }
 
-  const potAddresses = await getAllPotAddresses(environment);
-  const indexedEvents: EventRow[] = factoryLogs.map((log) => {
-    if (!log.args.pot) throw new IndexerError("Factory emitted a PotCreated event without a pot");
-    return makeEventRow(log, "PotCreated", log.args.pot);
-  });
-
-  for (let offset = 0; offset < potAddresses.length; offset += 100) {
-    const addressBatch = potAddresses.slice(offset, offset + 100);
-    const [contributions, payouts, refunds] = await Promise.all([
-      client.getLogs({ address: addressBatch, event: contributionEvent, fromBlock, toBlock }),
-      client.getLogs({ address: addressBatch, event: payoutEvent, fromBlock, toBlock }),
-      client.getLogs({ address: addressBatch, event: refundEvent, fromBlock, toBlock }),
-    ]);
-
-    indexedEvents.push(
-      ...contributions.map((log) => makeEventRow(log, "ContributionMade")),
-      ...payouts.map((log) => makeEventRow(log, "PotPaidOut")),
-      ...refunds.map((log) => makeEventRow(log, "ContributionRefunded")),
-    );
-  }
-
-  await upsertRows(
-    environment,
-    "pot_events",
-    indexedEvents,
-    "chain_id,transaction_hash,log_index",
-    "merge-duplicates",
-  );
-
-  return indexedEvents.length;
+  return indexedEventCount;
 }
 
 export async function POST(request: Request): Promise<Response> {
