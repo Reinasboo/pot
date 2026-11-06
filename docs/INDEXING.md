@@ -4,7 +4,7 @@
 
 The repository includes Supabase migrations and a server-only Next.js indexer endpoint. A
 Base Sepolia Supabase project has been provisioned and all migrations have been applied. The
-POT factory is deployed and configured, and GitHub Actions invokes the indexer every five minutes.
+POT factory is deployed and configured, and Vercel Cron invokes the indexer every five minutes.
 Supabase is not the financial source of truth; contract reads and events remain authoritative.
 
 The migration creates:
@@ -37,12 +37,11 @@ Apply migrations before invoking the indexer or publishing pot descriptions. Mig
 currently applied to the configured project. The metadata editor also requires the service role
 key; it is used only by server routes and never sent to the browser.
 
-The `Index Base Sepolia pots` GitHub Actions workflow runs every five minutes and can also be
-started manually. Set the repository Actions secret `INDEXER_CRON_SECRET` to the same value as
-the Vercel Production `INDEXER_CRON_SECRET`. The workflow sends an authenticated `POST` to
-`https://potonbase.vercel.app/api/indexer`; its concurrency group prevents overlapping runs.
-Scheduled GitHub Actions may be delayed, so check the workflow run history if indexing falls
-behind.
+The schedule in `apps/web/vercel.json` invokes `GET /api/indexer` every five minutes in production.
+Vercel sends the `CRON_SECRET` bearer token automatically; set it to the same value as
+`INDEXER_CRON_SECRET` so the route's existing authorization check protects scheduled requests.
+The route also accepts authenticated `POST` requests for manual runs. Check Vercel function logs
+if indexing falls behind.
 
 ## Run a batch
 

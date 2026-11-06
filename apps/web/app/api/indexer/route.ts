@@ -518,3 +518,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "The event indexer encountered an unexpected error" }, { status: 500 });
   }
 }
+
+export async function GET(request: Request): Promise<Response> {
+  return POST(request);
+}
