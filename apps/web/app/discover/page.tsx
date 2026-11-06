@@ -1,7 +1,7 @@
 import { pageMetadata } from "@/lib/site-metadata";
 import { Brand } from "@/components/brand";
-import Link from "next/link";
 import { PotDiscovery } from "@/components/pot-discovery";
+import { SiteHeader } from "@/components/site-header";
 
 export const metadata = pageMetadata({
   title: "Discover public pots",
@@ -13,12 +13,7 @@ export const metadata = pageMetadata({
 export default function DiscoverPage() {
   return (
     <main className="pot-page-shell">
-      <header className="pot-page-header">
-        <Brand className="brand" href="/" />
-        <nav className="pot-page-nav" aria-label="Main navigation">
-          <Link href="/dashboard">My pots</Link>
-        </nav>
-      </header>
+      <SiteHeader activeSection="discover" />
       <PotDiscovery />
       <footer className="pot-page-footer">
         <Brand className="brand footer-brand" href="/" />

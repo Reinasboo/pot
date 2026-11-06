@@ -110,7 +110,7 @@ export function PublicOrganizerPage({ wallet }: { wallet: string }) {
             className="public-organizer-heading"
             style={{ borderColor: data.profile.accentColor }}
           >
-            <p className="pot-eyebrow">POT ORGANIZER · BASE SEPOLIA</p>
+            <p className="pot-eyebrow">POT ORGANIZER</p>
             <h1>{data.profile.displayName || "Group fund organizer"}</h1>
             {data.profile.bio && <p>{data.profile.bio}</p>}
             <span>Verified wallet: {shortAddress(data.walletAddress)}</span>

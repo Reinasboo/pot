@@ -249,8 +249,8 @@ export function PublicPotPage({ address }: Props) {
         <p className="pot-eyebrow">POT LINK</p>
         <h1>We can’t open this pot.</h1>
         <p>{state.message}</p>
-        <Link className="pot-secondary-link" href="/">
-          Return to POT <span aria-hidden="true">→</span>
+        <Link className="pot-secondary-link" href="/discover">
+          Browse public pots <span aria-hidden="true">→</span>
         </Link>
       </div>
     );
@@ -272,6 +272,9 @@ export function PublicPotPage({ address }: Props) {
 
   return (
     <div className="public-pot-content" id="main-content" tabIndex={-1}>
+      <Link className="pot-return-link" href="/discover">
+        <span aria-hidden="true">←</span> Browse public pots
+      </Link>
       <section className="public-pot-summary">
         <div className="public-pot-main">
           <div className="pot-status-line">
@@ -280,7 +283,7 @@ export function PublicPotPage({ address }: Props) {
             />
             <span>{status}</span>
           </div>
-          <p className="pot-eyebrow">GROUP FUND · BASE SEPOLIA TEST NETWORK</p>
+          <p className="pot-eyebrow">GROUP FUND</p>
           <h1>{pot.name}</h1>
           {pot.description && (
             <p className="public-pot-description">{pot.description}</p>

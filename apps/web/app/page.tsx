@@ -1,6 +1,7 @@
 import { pageMetadata } from "@/lib/site-metadata";
 import { Brand } from "@/components/brand";
 import Link from "next/link";
+import { SiteHeader } from "@/components/site-header";
 import { HomeProductPreview } from "@/components/home-product-preview";
 import { TaglineReveal } from "@/components/tagline-reveal";
 
@@ -35,30 +36,7 @@ const rules = [
 export default function Home() {
   return (
     <main className="home-page">
-      <header className="site-header">
-        <Brand className="brand" href="/" />
-        <nav className="desktop-nav" aria-label="Main navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href="#rules">Money rules</a>
-          <Link href="/discover">Discover pots</Link>
-          <Link href="/dashboard">My pots</Link>
-        </nav>
-        <details className="home-mobile-menu">
-          <summary aria-label="Open navigation">
-            Menu <span aria-hidden="true">+</span>
-          </summary>
-          <nav aria-label="Mobile navigation">
-            <a href="#how-it-works">How it works</a>
-            <a href="#rules">Money rules</a>
-            <Link href="/discover">Discover pots</Link>
-            <Link href="/dashboard">My pots</Link>
-            <Link href="/roadmap">Roadmap</Link>
-          </nav>
-        </details>
-        <Link className="button button-primary" href="/create">
-          Plan a pot <span aria-hidden="true">↗</span>
-        </Link>
-      </header>
+      <SiteHeader />
       <section className="hero section-wrap" id="main-content" tabIndex={-1}>
         <div className="hero-copy">
           <p className="eyebrow">
@@ -265,7 +243,7 @@ export default function Home() {
           <Link href="/dashboard">My pots</Link>
         </div>
         <span className="footer-note">
-          Built for Base · Testnet development
+          Built on Base
         </span>
       </footer>
     </main>

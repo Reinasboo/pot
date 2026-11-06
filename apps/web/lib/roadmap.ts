@@ -16,20 +16,24 @@ export const roadmapStages = [
   },
   {
     number: "02",
-    status: "Built; not live yet",
+    status: "Live now",
     title: "Make sharing easier",
     description:
-      "Public discovery, signed organizer updates, community reactions, verified milestones, and share cards are built. They need the database migration and deployment before launch.",
-    items: ["Activity feeds", "Reactions and milestones", "Shareable cards", "Public pot discovery"],
+      "Discover public pots, follow confirmed activity, react, and share. Organizers can publish wallet-signed updates.",
+    items: ["Public pot discovery", "Activity feeds and reactions", "Confirmed funding milestones", "Shareable pot pages"],
+    href: "/discover",
+    action: "Explore public pots",
     current: false,
   },
   {
     number: "03",
-    status: "Built; not live yet",
+    status: "Live now",
     title: "Tools for organizers",
     description:
-      "Organizer analytics, CSV reports, public collections, and branded organizer pages are built. They need the database migration and deployment before launch; all tools are free.",
-    items: ["Creator collections", "Organizer analytics", "Branded pot pages", "Premium management tools"],
+      "Connect your wallet to review pot analytics, export reports, manage public collections, and customize your organizer page. These tools are free.",
+    items: ["Organizer analytics and CSV reports", "Public pot collections", "Branded organizer pages", "Free organizer tools"],
+    href: "/dashboard",
+    action: "Open organizer tools",
     current: false,
   },
   {

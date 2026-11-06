@@ -34,13 +34,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <a className="skip-link" href="#main-content">
           Skip to content
         </a>
-        <div className="testnet-status-bar">
-          <span className="testnet-status" role="note" aria-label="Network status">
-            <i aria-hidden="true" />
-            <strong>TESTNET</strong>
-            <span>Base Sepolia</span>
-          </span>
-        </div>
         <Providers>{children}</Providers>
       </body>
     </html>

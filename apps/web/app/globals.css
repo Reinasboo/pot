@@ -44,43 +44,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.testnet-status-bar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  justify-content: flex-end;
-  min-height: 34px;
-  padding-inline: max(20px, calc((100% - 1320px) / 2));
-  border-bottom: 1px solid #cfe4d4;
-  background: #e4f2e8;
-}
-
-.testnet-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: #155c35;
-  font-size: 11px;
-  line-height: 1;
-}
-
-.testnet-status i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #087a3e;
-  box-shadow: 0 0 0 3px rgb(8 122 62 / 12%);
-}
-
-.testnet-status strong {
-  letter-spacing: 0.06em;
-}
-
-.testnet-status > span {
-  color: #526e5a;
-}
-
 a {
   color: inherit;
   text-decoration: none;
@@ -106,6 +69,131 @@ a {
   height: 88px;
   margin-inline: auto;
   border-bottom: 1px solid rgb(20 27 25 / 9%);
+}
+
+.app-site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgb(247 247 240 / 94%);
+  backdrop-filter: blur(14px);
+}
+
+.app-site-header .desktop-nav {
+  gap: 8px;
+}
+
+.app-site-header .desktop-nav a {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.app-site-header .desktop-nav a:hover,
+.app-site-header .desktop-nav a[aria-current="page"] {
+  background: #e9ecdf;
+  color: var(--ink);
+}
+
+.app-site-header-actions {
+  gap: 14px;
+}
+
+.network-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid #dfe4d7;
+  border-radius: 7px;
+  background: #f0f2e9;
+  color: #465146;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.network-context > i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #71865c;
+}
+
+.network-context-environment {
+  padding-left: 7px;
+  border-left: 1px solid #d6dccd;
+  color: #737b6d;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.app-plan-link[aria-current="page"] {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.app-mobile-menu {
+  display: none;
+  position: relative;
+  color: var(--ink);
+}
+
+.app-mobile-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 0 4px 0 10px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.app-mobile-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-mobile-menu[open] > summary > span:last-child {
+  transform: rotate(45deg);
+}
+
+.app-mobile-menu > summary > span:last-child {
+  transition: transform 160ms ease;
+}
+
+.app-mobile-menu nav {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  width: min(280px, calc(100vw - 40px));
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: 0 16px 40px rgb(20 27 25 / 12%);
+}
+
+.app-mobile-menu nav a {
+  padding: 12px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.app-mobile-menu nav a:hover,
+.app-mobile-menu nav a[aria-current="page"] {
+  background: #e9ecdf;
+  color: var(--ink);
 }
 
 .brand {
@@ -1037,6 +1125,21 @@ a {
   content: "";
 }
 
+.roadmap-card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  color: #d7f0dc;
+  font-size: 14px;
+  font-weight: 700;
+  text-underline-offset: 4px;
+}
+
+.roadmap-card-action:hover {
+  text-decoration: underline;
+}
+
 .roadmap-card:not(.roadmap-current) li::before {
   background: #a6bbaa;
 }
@@ -1161,6 +1264,10 @@ a {
     display: none;
   }
 
+  .app-mobile-menu {
+    display: block;
+  }
+
   .header-dashboard-link {
     display: inline-flex;
   }
@@ -1226,6 +1333,25 @@ a {
 
   .site-header-actions {
     gap: 12px;
+  }
+
+  .app-site-header {
+    height: 70px;
+  }
+
+  .app-plan-link {
+    display: none;
+  }
+
+  .network-context {
+    min-height: 32px;
+    gap: 6px;
+    padding-inline: 8px;
+    font-size: 11px;
+  }
+
+  .app-mobile-menu nav {
+    top: calc(100% + 10px);
   }
 
   .header-dashboard-link {
@@ -2851,6 +2977,21 @@ a {
 
 .pot-page-shell .footer-brand {
   font-size: 15px;
+}
+
+.pot-return-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 28px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+  transition: color 160ms ease;
+}
+
+.pot-return-link:hover {
+  color: var(--green-ink);
 }
 
 @media (max-width: 640px) {

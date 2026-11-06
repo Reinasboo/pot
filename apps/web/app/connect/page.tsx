@@ -1,7 +1,6 @@
 import { pageMetadata } from "@/lib/site-metadata";
-import { Brand } from "@/components/brand";
-import Link from "next/link";
 import { WalletConnection } from "@/components/wallet-connection";
+import { SiteHeader } from "@/components/site-header";
 
 export const metadata = pageMetadata({
   title: "Connect wallet",
@@ -14,12 +13,7 @@ export const metadata = pageMetadata({
 export default function ConnectPage() {
   return (
     <main className="connect-page">
-      <header className="connect-header">
-        <Brand className="brand" href="/" />
-        <Link className="connect-back-link" href="/">
-          Back to home
-        </Link>
-      </header>
+      <SiteHeader />
       <div className="connect-content" id="main-content" tabIndex={-1}>
         <div className="connect-intro">
           <p className="eyebrow">

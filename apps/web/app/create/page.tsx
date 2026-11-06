@@ -1,8 +1,8 @@
 import { pageMetadata } from "@/lib/site-metadata";
 import { Brand } from "@/components/brand";
-import Link from "next/link";
 import { Suspense } from "react";
 import { PotPlanner } from "@/components/pot-planner";
+import { SiteHeader } from "@/components/site-header";
 
 export const metadata = pageMetadata({
   title: "Plan a pot",
@@ -13,12 +13,7 @@ export const metadata = pageMetadata({
 export default function CreatePage() {
   return (
     <main className="pot-page-shell">
-      <header className="pot-page-header">
-        <Brand className="brand" href="/" />
-        <Link className="pot-create-back-link" href="/dashboard">
-          My pots
-        </Link>
-      </header>
+      <SiteHeader activeSection="plan" />
       <Suspense
         fallback={
           <div className="app-state" role="status">

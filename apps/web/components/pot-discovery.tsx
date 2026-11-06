@@ -119,11 +119,10 @@ export function PotDiscovery() {
   return (
     <div className="discovery-page-content" id="main-content" tabIndex={-1}>
       <header className="discovery-heading">
-        <p className="pot-eyebrow">PUBLIC POTS · BASE SEPOLIA</p>
+        <p className="pot-eyebrow">PUBLIC POTS</p>
         <h1>Find a group fund.</h1>
         <p>
           Browse public pots and check the money rules before you open one.
-          Amounts are read from Base Sepolia.
         </p>
       </header>
       <form

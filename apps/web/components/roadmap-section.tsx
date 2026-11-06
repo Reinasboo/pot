@@ -1,4 +1,5 @@
 import { roadmapStages } from "@/lib/roadmap";
+import Link from "next/link";
 
 type RoadmapSectionProps = {
   standalone?: boolean;
@@ -22,9 +23,8 @@ export function RoadmapSection({ standalone = false }: RoadmapSectionProps) {
             )}
           </div>
           <p>
-            Stages 2 and 3 are implemented in the codebase, but need the
-            database migration and deployment before they’re available. Creating
-            pots and collecting money are still off.
+            Stages 2 and 3 are live on Base Sepolia. Creating pots and collecting
+            money are not available yet.
           </p>
         </div>
         <div className="roadmap-grid">
@@ -44,6 +44,11 @@ export function RoadmapSection({ standalone = false }: RoadmapSectionProps) {
                   <li key={item}>{item}</li>
                 ))}
               </ul>
+              {"href" in stage && (
+                <Link className="roadmap-card-action" href={stage.href}>
+                  {stage.action} <span aria-hidden="true">→</span>
+                </Link>
+              )}
             </article>
           ))}
         </div>
