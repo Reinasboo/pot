@@ -51,6 +51,8 @@ type EventRow = {
   event_data: Record<string, JsonValue>;
 };
 
+const maxBatchesPerRequest = 5;
+
 class IndexerError extends Error {
   constructor(
     message: string,
@@ -459,43 +461,62 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const safeHead = latestBlock - environment.confirmations;
-    leaseId = crypto.randomUUID();
-    const batches = await rpc<Batch[]>(environment, "claim_indexer_batch", {
-      p_chain_id: baseSepolia.id,
-      p_initial_block: environment.initialBlock,
-      p_end_block: safeHead.toString(),
-      p_batch_size: environment.batchSize,
-      p_lease_id: leaseId,
-    });
-    const batch = batches[0];
+    let firstBlock: bigint | null = null;
+    let lastBlock: bigint | null = null;
+    let indexedEvents = 0;
+    let batchesProcessed = 0;
 
-    if (!batch || batch.from_block === null || batch.to_block === null) {
+    for (let batchNumber = 0; batchNumber < maxBatchesPerRequest; batchNumber += 1) {
+      leaseId = crypto.randomUUID();
+      const batches = await rpc<Batch[]>(environment, "claim_indexer_batch", {
+        p_chain_id: baseSepolia.id,
+        p_initial_block: environment.initialBlock,
+        p_end_block: safeHead.toString(),
+        p_batch_size: environment.batchSize,
+        p_lease_id: leaseId,
+      });
+      const batch = batches[0];
+
+      if (!batch || batch.from_block === null || batch.to_block === null) {
+        leaseId = null;
+        break;
+      }
+
+      const fromBlock = BigInt(batch.from_block);
+      const toBlock = BigInt(batch.to_block);
+      indexedEvents += await indexBatch(environment, fromBlock, toBlock);
+      const endBlock = await client.getBlock({ blockNumber: toBlock });
+      if (!endBlock.hash) throw new IndexerError("Could not verify the indexed batch's final block");
+
+      await rpc(environment, "complete_indexer_batch", {
+        p_chain_id: baseSepolia.id,
+        p_lease_id: leaseId,
+        p_to_block: toBlock.toString(),
+        p_block_hash: endBlock.hash,
+      });
+      leaseId = null;
+      firstBlock ??= fromBlock;
+      lastBlock = toBlock;
+      batchesProcessed += 1;
+    }
+
+    if (batchesProcessed === 0) {
       return Response.json({
         status: "up_to_date",
         safeHead: safeHead.toString(),
         indexedEvents: 0,
       });
     }
-
-    const fromBlock = BigInt(batch.from_block);
-    const toBlock = BigInt(batch.to_block);
-    const indexedEvents = await indexBatch(environment, fromBlock, toBlock);
-    const endBlock = await client.getBlock({ blockNumber: toBlock });
-    if (!endBlock.hash) throw new IndexerError("Could not verify the indexed batch's final block");
-
-    await rpc(environment, "complete_indexer_batch", {
-      p_chain_id: baseSepolia.id,
-      p_lease_id: leaseId,
-      p_to_block: toBlock.toString(),
-      p_block_hash: endBlock.hash,
-    });
-    leaseId = null;
+    if (firstBlock === null || lastBlock === null) {
+      throw new IndexerError("Indexed batches did not produce a valid block range");
+    }
 
     return Response.json({
       status: "indexed",
-      fromBlock: fromBlock.toString(),
-      toBlock: toBlock.toString(),
+      fromBlock: firstBlock.toString(),
+      toBlock: lastBlock.toString(),
       indexedEvents,
+      batchesProcessed,
     });
   } catch (error) {
     if (leaseId && environment) {
@@ -517,8 +538,4 @@ export async function POST(request: Request): Promise<Response> {
     console.error("Pot event indexer failed unexpectedly", error);
     return Response.json({ error: "The event indexer encountered an unexpected error" }, { status: 500 });
   }
-}
-
-export async function GET(request: Request): Promise<Response> {
-  return POST(request);
 }

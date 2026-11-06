@@ -1,9 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [
-    {
+  "schedules": {
+    "indexer": {
+      "schedule": "*/15 * * * *",
+      "jitter": 15,
       "path": "/api/indexer",
-      "schedule": "*/5 * * * *"
+      "requestMethod": "POST"
     }
-  ]
+  }
 }

@@ -4,7 +4,8 @@
 
 The repository includes Supabase migrations and a server-only Next.js indexer endpoint. A
 Base Sepolia Supabase project has been provisioned and all migrations have been applied. The
-POT factory is deployed and configured, and Vercel Cron invokes the indexer every five minutes.
+POT factory is deployed and configured, and a Vercel Schedule invokes the indexer every fifteen
+minutes.
 Supabase is not the financial source of truth; contract reads and events remain authoritative.
 
 The migration creates:
@@ -37,11 +38,12 @@ Apply migrations before invoking the indexer or publishing pot descriptions. Mig
 currently applied to the configured project. The metadata editor also requires the service role
 key; it is used only by server routes and never sent to the browser.
 
-The schedule in `apps/web/vercel.json` invokes `GET /api/indexer` every five minutes in production.
-Vercel sends the `CRON_SECRET` bearer token automatically; set it to the same value as
-`INDEXER_CRON_SECRET` so the route's existing authorization check protects scheduled requests.
-The route also accepts authenticated `POST` requests for manual runs. Check Vercel function logs
-if indexing falls behind.
+The schedule in `apps/web/vercel.json` invokes `POST /api/indexer` every fifteen minutes in
+production, with up to 15 minutes of schedule jitter on the Hobby plan. Vercel sends the
+`CRON_SECRET` bearer token automatically; set it to the same value as `INDEXER_CRON_SECRET` so the
+route's existing authorization check protects scheduled requests. Each run processes at most five
+confirmed batches (up to 10,000 blocks with a batch size of 2,000) and safely resumes on the next
+run. Check Vercel function logs if indexing falls behind.
 
 ## Run a batch
 
@@ -52,10 +54,10 @@ POST /api/indexer
 Authorization: Bearer <INDEXER_CRON_SECRET>
 ```
 
-The endpoint verifies the RPC chain ID, indexes only confirmed-through blocks, claims one cursor
-batch, upserts logs using `(chain_id, transaction_hash, log_index)`, and commits the cursor only
-after the event writes and final block hash succeed. Failed batches release their lease where
-possible and may be safely retried.
+The endpoint verifies the RPC chain ID, indexes only confirmed-through blocks, and claims up to five
+cursor batches per request. It upserts logs using `(chain_id, transaction_hash, log_index)` and
+commits each cursor only after the event writes and final block hash succeed. Failed batches release
+their lease where possible and may be safely retried.
 
 If the recorded batch-tip hash no longer matches the canonical chain, the indexer rewinds to the
 configured factory start block and rebuilds its cached pot/event records. This favors correctness
