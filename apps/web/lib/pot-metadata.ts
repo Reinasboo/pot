@@ -251,6 +251,30 @@ async function supabaseRequest(
   }
 }
 
+async function requireIndexedPot(
+  environment: MetadataEnvironment,
+  walletAddress: `0x${string}`,
+  potAddress: `0x${string}`,
+): Promise<void> {
+  const parameters = new URLSearchParams({
+    select: "address",
+    chain_id: `eq.${baseSepolia.id}`,
+    address: `eq.${potAddress.toLowerCase()}`,
+    organizer: `eq.${walletAddress.toLowerCase()}`,
+    limit: "1",
+  });
+  const indexedPots = await supabaseRequest(
+    environment,
+    `pots?${parameters.toString()}`,
+  );
+  if (!Array.isArray(indexedPots) || indexedPots.length === 0) {
+    throw new PotMetadataError(
+      "This pot is not indexed yet. Wait for indexing, then sign again to save its settings.",
+      409,
+    );
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -303,6 +327,7 @@ export async function createPotMetadataChallenge(
   if (organizer.toLowerCase() !== walletAddress.toLowerCase()) {
     throw new PotMetadataError("Only this pot’s onchain organizer can publish its description.", 403);
   }
+  await requireIndexedPot(environment, walletAddress, potAddress);
 
   const issuedAt = new Date();
   const expiresAt = new Date(issuedAt.getTime() + nonceLifetimeMs);
@@ -461,23 +486,7 @@ export async function publishPotDescription(input: {
     throw new PotMetadataError("Only this pot’s onchain organizer can publish its description.", 403);
   }
 
-  const potParameters = new URLSearchParams({
-    select: "address",
-    chain_id: `eq.${baseSepolia.id}`,
-    address: `eq.${potAddress.toLowerCase()}`,
-    organizer: `eq.${walletAddress.toLowerCase()}`,
-    limit: "1",
-  });
-  const indexedPots = await supabaseRequest(
-    environment,
-    `pots?${potParameters.toString()}`,
-  );
-  if (!Array.isArray(indexedPots) || indexedPots.length === 0) {
-    throw new PotMetadataError(
-      "This pot is not indexed yet. Wait for indexing, then sign again to save its settings.",
-      409,
-    );
-  }
+  await requireIndexedPot(environment, walletAddress, potAddress);
 
   const consumeParameters = new URLSearchParams({
     nonce: `eq.${input.nonce}`,

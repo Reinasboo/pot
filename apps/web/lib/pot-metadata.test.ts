@@ -62,9 +62,12 @@ describe("pot metadata authorization", () => {
   it("binds a short-lived sign-in message to the pot, wallet, origin, and Base Sepolia", async () => {
     configureEnvironment();
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "sb_secret_test-only-key");
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(new Headers(init?.headers).get("apikey")).toBe("sb_secret_test-only-key");
       expect(new Headers(init?.headers).has("authorization")).toBe(false);
+      if (new URL(input.toString()).pathname.endsWith("/pots")) {
+        return Response.json([{ address: potAddress.toLowerCase() }]);
+      }
       return Response.json(true);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -84,8 +87,8 @@ describe("pot metadata authorization", () => {
     expect(challenge.message).toContain("Chain ID: 84532");
     expect(challenge.message).toContain(`Nonce: ${challenge.nonce}`);
     expect(Date.parse(challenge.expiresAt)).toBeGreaterThan(Date.now());
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toMatchObject({
       p_wallet_address: walletAddress.toLowerCase(),
       p_pot_address: potAddress.toLowerCase(),
       p_origin: "https://pot.example",
@@ -124,7 +127,11 @@ describe("pot metadata authorization", () => {
 
   it("reports a rate-limited challenge response", async () => {
     configureEnvironment();
-    const fetchMock = vi.fn(async () => Response.json(false));
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      new URL(input.toString()).pathname.endsWith("/pots")
+        ? Response.json([{ address: potAddress.toLowerCase() }])
+        : Response.json(false),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
@@ -135,6 +142,25 @@ describe("pot metadata authorization", () => {
         "A weekend away together.",
       ),
     ).rejects.toMatchObject({ status: 429 });
+  });
+
+  it("does not ask for a signature until the created pot is indexed", async () => {
+    configureEnvironment();
+    const fetchMock = vi.fn(async () => Response.json([]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+    createPotMetadataChallenge(
+      walletAddress,
+      potAddress,
+      "https://pot.example",
+      "A weekend away together.",
+    ),
+    ).rejects.toMatchObject({
+    status: 409,
+    message: "This pot is not indexed yet. Wait for indexing, then sign again to save its settings.",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("persists an explicitly authorized description and consumes the nonce once", async () => {

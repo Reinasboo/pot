@@ -819,8 +819,9 @@ export function PotCreationDraft({
           walletAddress && (
             <div className="pot-create-published-metadata">
               <p>
-                Your pot’s rules are onchain. Choose who can open the POT page
-                below and sign to save.
+                Your pot is on Base Sepolia. It will appear in public listings
+                after indexing; then choose who can open its POT page and sign
+                to publish the settings.
               </p>
               <PotMetadataEditor
                 address={createdPotAddress}

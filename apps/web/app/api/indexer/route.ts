@@ -179,6 +179,7 @@ async function supabaseRequest<T>(
   environment: IndexerEnvironment,
   path: string,
   init: RequestInit = {},
+  allowEmptyResponse = false,
 ): Promise<T> {
   const response = await fetch(`${environment.supabaseUrl}/rest/v1/${path}`, {
     ...init,
@@ -191,27 +192,38 @@ async function supabaseRequest<T>(
     cache: "no-store",
   });
 
+  const responseText = await response.text();
   if (!response.ok) {
-    const responseText = await response.text();
     throw new IndexerError(
       `Supabase request failed (${response.status}): ${responseText.slice(0, 500)}`,
       502,
     );
   }
 
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  if (response.status === 204 || (allowEmptyResponse && !responseText.trim())) {
+    return undefined as T;
+  }
+  if (!responseText.trim()) {
+    throw new IndexerError(`Supabase returned an empty response for ${path}`, 502);
+  }
+
+  try {
+    return JSON.parse(responseText) as T;
+  } catch {
+    throw new IndexerError(`Supabase returned invalid JSON for ${path}`, 502);
+  }
 }
 
 function rpc<T>(
   environment: IndexerEnvironment,
   functionName: string,
   body: Record<string, unknown>,
+  allowEmptyResponse = false,
 ): Promise<T> {
   return supabaseRequest<T>(environment, `rpc/${functionName}`, {
     method: "POST",
     body: JSON.stringify(body),
-  });
+  }, allowEmptyResponse);
 }
 
 async function getIndexerState(
@@ -257,7 +269,7 @@ async function rewindIfNeeded(
     p_initial_block: environment.initialBlock,
     p_next_block: environment.initialBlock,
     p_last_block_hash: rewindParent.hash,
-  });
+  }, true);
 }
 
 function makeEventRow(
@@ -305,6 +317,7 @@ async function upsertRows(
         headers: { prefer: `resolution=${resolution},return=minimal` },
         body: JSON.stringify(batch),
       },
+      true,
     );
   }
 }
@@ -353,12 +366,17 @@ async function indexBatch(
       rangeStart + maxRpcBlockRange - oneBlock > toBlock
         ? toBlock
         : rangeStart + maxRpcBlockRange - oneBlock;
-    const factoryLogs = await client.getLogs({
-      address: environment.factoryAddress,
-      event: potCreatedEvent,
-      fromBlock: rangeStart,
-      toBlock: rangeEnd,
-    });
+    const factoryLogs = await getIndexerLogs(
+      () =>
+        client.getLogs({
+          address: environment.factoryAddress,
+          event: potCreatedEvent,
+          fromBlock: rangeStart,
+          toBlock: rangeEnd,
+        }),
+      rangeStart,
+      rangeEnd,
+    );
 
     const createdPotRows = factoryLogs.map((log) => {
       const args = log.args;
@@ -415,24 +433,39 @@ async function indexBatch(
     for (let offset = 0; offset < addressList.length; offset += 100) {
       const addressBatch = addressList.slice(offset, offset + 100);
       const [contributions, payouts, refunds] = await Promise.all([
-        client.getLogs({
-          address: addressBatch,
-          event: contributionEvent,
-          fromBlock: rangeStart,
-          toBlock: rangeEnd,
-        }),
-        client.getLogs({
-          address: addressBatch,
-          event: payoutEvent,
-          fromBlock: rangeStart,
-          toBlock: rangeEnd,
-        }),
-        client.getLogs({
-          address: addressBatch,
-          event: refundEvent,
-          fromBlock: rangeStart,
-          toBlock: rangeEnd,
-        }),
+        getIndexerLogs(
+          () =>
+            client.getLogs({
+              address: addressBatch,
+              event: contributionEvent,
+              fromBlock: rangeStart,
+              toBlock: rangeEnd,
+            }),
+          rangeStart,
+          rangeEnd,
+        ),
+        getIndexerLogs(
+          () =>
+            client.getLogs({
+              address: addressBatch,
+              event: payoutEvent,
+              fromBlock: rangeStart,
+              toBlock: rangeEnd,
+            }),
+          rangeStart,
+          rangeEnd,
+        ),
+        getIndexerLogs(
+          () =>
+            client.getLogs({
+              address: addressBatch,
+              event: refundEvent,
+              fromBlock: rangeStart,
+              toBlock: rangeEnd,
+            }),
+          rangeStart,
+          rangeEnd,
+        ),
       ]);
 
       indexedEvents.push(
@@ -454,6 +487,24 @@ async function indexBatch(
   }
 
   return indexedEventCount;
+}
+
+async function getIndexerLogs<T>(
+  readLogs: () => Promise<T>,
+  fromBlock: bigint,
+  toBlock: bigint,
+): Promise<T> {
+  try {
+    return await readLogs();
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new IndexerError(
+        `Base Sepolia RPC returned an invalid response for logs in blocks ${fromBlock}-${toBlock}`,
+        502,
+      );
+    }
+    throw error;
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -522,7 +573,7 @@ export async function POST(request: Request): Promise<Response> {
         p_lease_id: leaseId,
         p_to_block: toBlock.toString(),
         p_block_hash: endBlock.hash,
-      });
+      }, true);
       leaseId = null;
       firstBlock ??= fromBlock;
       lastBlock = toBlock;
@@ -553,7 +604,7 @@ export async function POST(request: Request): Promise<Response> {
         await rpc(environment, "release_indexer_batch", {
           p_chain_id: baseSepolia.id,
           p_lease_id: leaseId,
-        });
+        }, true);
       } catch (releaseError) {
         console.error("Could not release the failed indexer batch lease", releaseError);
       }
