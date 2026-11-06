@@ -20,9 +20,6 @@ export default async function PotPage({ params }: PageProps<"/pot/[address]">) {
         <Brand className="brand" href="/" />
         <nav className="pot-page-nav" aria-label="Main navigation">
           <Link href="/discover">Discover pots</Link>
-          <span className="pot-network-label">
-            <i /> Base Sepolia
-          </span>
         </nav>
       </header>
       <PublicPotPage address={address} />

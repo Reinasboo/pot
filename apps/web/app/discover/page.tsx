@@ -17,9 +17,6 @@ export default function DiscoverPage() {
         <Brand className="brand" href="/" />
         <nav className="pot-page-nav" aria-label="Main navigation">
           <Link href="/dashboard">My pots</Link>
-          <span className="pot-network-label">
-            <i /> Base Sepolia
-          </span>
         </nav>
       </header>
       <PotDiscovery />

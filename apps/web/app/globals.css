@@ -44,6 +44,43 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.testnet-status-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  min-height: 34px;
+  padding-inline: max(20px, calc((100% - 1320px) / 2));
+  border-bottom: 1px solid #cfe4d4;
+  background: #e4f2e8;
+}
+
+.testnet-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #155c35;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.testnet-status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #087a3e;
+  box-shadow: 0 0 0 3px rgb(8 122 62 / 12%);
+}
+
+.testnet-status strong {
+  letter-spacing: 0.06em;
+}
+
+.testnet-status > span {
+  color: #526e5a;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -1751,16 +1788,6 @@ a {
   border-bottom: 1px solid var(--line);
 }
 
-.pot-network-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-weight: 650;
-}
-
-.pot-network-label i,
 .pot-chain-badge i {
   width: 7px;
   height: 7px;
@@ -4453,8 +4480,7 @@ a {
     gap: 10px;
   }
 
-  .pot-page-nav > a,
-  .pot-page-nav .pot-network-label {
+  .pot-page-nav > a {
     font-size: 12px;
   }
 

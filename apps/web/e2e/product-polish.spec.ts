@@ -1,6 +1,22 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
+test("keeps testnet status visible at the top right across the app", async ({
+  page,
+}) => {
+  for (const path of ["/", "/create", "/connect", "/dashboard", "/discover"]) {
+    await page.goto(path);
+    const status = page.getByRole("note", { name: "Network status" });
+    await expect(status).toContainText("TESTNET");
+    await expect(status).toContainText("Base Sepolia");
+    const bounds = await status.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x + bounds!.width).toBeGreaterThan(
+      (await page.evaluate(() => window.innerWidth)) / 2,
+    );
+  }
+});
+
 test("an example becomes an editable plan without inventing payment activity", async ({
   page,
 }) => {
